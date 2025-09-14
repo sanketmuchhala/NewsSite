@@ -21,8 +21,8 @@ export async function getSounds(
   sourceType?: string,
   search?: string
 ): Promise<PaginatedResponse<Sound>> {
-  // Return empty results during build time
-  if (process.env.NODE_ENV !== 'production' && !process.env.POSTGRES_URL) {
+  // Return empty results during build time or if no database URL
+  if (!process.env.POSTGRES_URL) {
     return {
       success: true,
       data: [],
@@ -96,6 +96,13 @@ export async function getSounds(
 }
 
 export async function getSoundById(id: string): Promise<{ success: boolean; data?: Sound; error?: string }> {
+  if (!process.env.POSTGRES_URL) {
+    return {
+      success: false,
+      error: 'Database not available'
+    };
+  }
+
   try {
     const result = await sql.query('SELECT * FROM sounds WHERE id = $1', [id]);
 
@@ -120,11 +127,11 @@ export async function getSoundById(id: string): Promise<{ success: boolean; data
 }
 
 export async function getRandomSound(): Promise<{ success: boolean; data?: Sound; error?: string }> {
-  // Return error during build time
-  if (process.env.NODE_ENV !== 'production' && !process.env.POSTGRES_URL) {
+  // Return error if no database URL
+  if (!process.env.POSTGRES_URL) {
     return {
       success: false,
-      error: 'Database not available during build'
+      error: 'Database not available'
     };
   }
 
@@ -157,6 +164,13 @@ export async function getRandomSound(): Promise<{ success: boolean; data?: Sound
 }
 
 export async function createSound(sound: Omit<Sound, 'id' | 'created_at'>): Promise<{ success: boolean; data?: Sound; error?: string }> {
+  if (!process.env.POSTGRES_URL) {
+    return {
+      success: false,
+      error: 'Database not available'
+    };
+  }
+
   try {
     const result = await sql.query(`
       INSERT INTO sounds (title, source_url, source_type, duration, tags, description, thumbnail_url, metadata, weirdness_score)
@@ -189,8 +203,8 @@ export async function createSound(sound: Omit<Sound, 'id' | 'created_at'>): Prom
 
 // Graph operations
 export async function getGraphData(): Promise<{ success: boolean; data?: { sounds: Sound[]; relationships: SoundRelationship[] }; error?: string }> {
-  // Return empty results during build time
-  if (process.env.NODE_ENV !== 'production' && !process.env.POSTGRES_URL) {
+  // Return empty results if no database URL
+  if (!process.env.POSTGRES_URL) {
     return {
       success: true,
       data: {

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { Sound, ApiResponse, PaginatedResponse } from '@/types';
 import SoundCard from '@/components/SoundCard';
 import { useSearchParams } from 'next/navigation';
 
-export default function HomePage() {
+function HomePageContent() {
   const [sounds, setSounds] = useState<Sound[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -377,5 +377,20 @@ export default function HomePage() {
         <span title="Try the Konami Code...">👻</span>
       </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-weird-purple border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading weird sounds discovery...</p>
+        </div>
+      </div>
+    }>
+      <HomePageContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Sound, ApiResponse } from '@/types';
 import AudioPlayer from '@/components/AudioPlayer';
