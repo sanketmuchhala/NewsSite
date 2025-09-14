@@ -1,6 +1,6 @@
 # 🚀 Deployment Guide
 
-This guide covers deploying the Weird Sounds Discovery website to Vercel with all required services.
+This guide covers deploying the Funny News Aggregator website to Vercel with seamless GitHub integration.
 
 ## 📋 Prerequisites
 
@@ -8,8 +8,7 @@ Before deploying, ensure you have:
 - GitHub repository with your code
 - Vercel account (free tier works)
 - API keys (optional but recommended):
-  - YouTube Data API key
-  - Freesound.org API key
+  - Google AI API key (for enhanced summaries)
 
 ## 🗄️ Database Setup
 
@@ -18,7 +17,7 @@ Before deploying, ensure you have:
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Navigate to the Storage tab
 3. Click "Create Database" → "Postgres"
-4. Choose a name like `weird-sounds-db`
+4. Choose a name like `funny-news-db`
 5. Select your region (closest to users)
 6. Click "Create"
 
@@ -38,6 +37,11 @@ Option B: Using Web Interface
 3. Copy and paste contents of `lib/db/schema.sql`
 4. Click "Run"
 
+Option C: Using Migration Script
+```bash
+npm run migrate:news
+```
+
 ## 🔑 Environment Variables
 
 ### Required Variables
@@ -53,64 +57,67 @@ NEXT_PUBLIC_APP_URL=https://your-app-name.vercel.app
 
 ### Optional API Keys
 ```env
-# YouTube Data API (enables YouTube scraping)
-YOUTUBE_API_KEY=your_youtube_api_key_here
-
-# Freesound API (enables Freesound scraping)
-FREESOUND_API_KEY=your_freesound_api_key_here
+# Google AI API (enables enhanced story summaries)
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
 ```
 
 ## 📡 API Keys Setup
 
-### YouTube Data API
+### Google AI API (Optional)
 
-1. **Google Cloud Console**
-   - Go to [console.cloud.google.com](https://console.cloud.google.com/)
-   - Create new project or select existing
-   - Enable "YouTube Data API v3"
+1. **Google AI Studio**
+   - Go to [aistudio.google.com](https://aistudio.google.com/)
+   - Sign in with Google account
+   - Click "Get API Key"
 
 2. **Create API Key**
-   - Go to "Credentials" → "Create Credentials" → "API Key"
-   - Restrict key to YouTube Data API (recommended)
-   - Copy the API key
+   - Click "Create API Key"
+   - Copy the generated key
+   - Keep it secure
 
 3. **Add to Vercel**
    - In Vercel project settings → Environment Variables
-   - Add `YOUTUBE_API_KEY` with your key value
-
-### Freesound.org API
-
-1. **Create Account**
-   - Register at [freesound.org](https://freesound.org/home/register/)
-   - Verify your email
-
-2. **Get API Key**
-   - Go to [freesound.org/apiv2/apply](https://freesound.org/apiv2/apply/)
-   - Fill out application (describe your use case)
-   - Wait for approval (usually quick)
-
-3. **Add to Vercel**
-   - Add `FREESOUND_API_KEY` in environment variables
+   - Add `GOOGLE_AI_API_KEY` with your key value
 
 ## 🌐 Vercel Deployment
 
-### Method 1: GitHub Integration (Recommended)
+### Method 1: GitHub Integration (Recommended) 📋
 
-1. **Connect Repository**
+This is the **simplest and most automated** way to deploy:
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Connect to Vercel**
    - Go to [vercel.com/new](https://vercel.com/new)
-   - Import your GitHub repository
-   - Configure project settings:
-     - Framework Preset: Next.js
-     - Root Directory: `./` (if repo root)
+   - Click "Import Git Repository"
+   - Select your GitHub repository
+   - Vercel will automatically detect it's a Next.js project
 
-2. **Environment Variables**
-   - Add all environment variables listed above
-   - Database variables are auto-added if you linked the database
+3. **Configure Project**
+   - Framework Preset: Next.js (auto-detected)
+   - Root Directory: `./` (leave default)
+   - Build Command: `npm run build` (auto-detected)
+   - Output Directory: `.next` (auto-detected)
 
-3. **Deploy**
+4. **Add Environment Variables**
+   - Click "Environment Variables" section
+   - Add your database and API keys (see variables section above)
+   - Or connect your Vercel Postgres database to auto-populate
+
+5. **Deploy**
    - Click "Deploy"
-   - Wait for deployment to complete
-   - Visit your live site!
+   - Wait 2-3 minutes for deployment
+   - Get your live URL: `https://your-project-name.vercel.app`
+
+6. **Automatic Deployments**
+   - Every push to main branch = automatic deployment
+   - Pull requests = preview deployments
+   - Zero configuration needed!
 
 ### Method 2: Vercel CLI
 
@@ -135,7 +142,7 @@ vercel --prod
 
 ### 1. Test Database Connection
 
-Visit `https://your-app.vercel.app/api/sounds` to verify database connection.
+Visit `https://your-app.vercel.app/api/stories` to verify database connection.
 
 Expected response:
 ```json
@@ -155,33 +162,28 @@ Expected response:
 
 Option A: Manual API Call
 ```bash
-curl -X POST https://your-app.vercel.app/api/scrape \
-  -H "Content-Type: application/json" \
-  -d '{"source":"all","maxSounds":20,"manual":true}'
+curl -X POST https://your-app.vercel.app/api/scrape/run \
+  -H "Content-Type: application/json"
 ```
 
-Option B: GitHub Actions (Automatic)
-- Push code to trigger workflow
-- Or manually run workflow in GitHub Actions tab
+Option B: Use the Web Interface
+- Visit your deployed site
+- Go to Sources page
+- Click "Run Scraper" button
 
-### 3. Verify GitHub Actions
+### 3. Verify Everything Works
 
-1. **Check Secrets**
-   - Go to Repository Settings → Secrets and Variables → Actions
-   - Add required secrets:
-     ```
-     POSTGRES_URL
-     POSTGRES_PRISMA_URL
-     POSTGRES_URL_NON_POOLING
-     YOUTUBE_API_KEY (optional)
-     FREESOUND_API_KEY (optional)
-     NEXT_PUBLIC_APP_URL
-     ```
+1. **Check Main Pages**
+   - Home page: Latest funny news stories
+   - Trending page: Most upvoted stories
+   - Graph page: Story relationships visualization
+   - Sources page: Scraper controls
 
-2. **Test Workflow**
-   - Go to Actions tab
-   - Run "Automated Weird Sounds Scraping" manually
-   - Check logs for successful execution
+2. **Test Features**
+   - Vote on stories (upvote/downvote)
+   - Filter by tags and sources
+   - View individual story pages
+   - Check responsive design on mobile
 
 ## 🎨 Custom Domain (Optional)
 
@@ -223,8 +225,8 @@ echo $POSTGRES_URL
 ```
 
 **API Rate Limits**
-- YouTube: 10,000 requests/day (monitor quota)
-- Freesound: Check rate limiting in API responses
+- Google AI: Check your quota in AI Studio
+- RSS feeds: Respect robots.txt and rate limits
 - Implement exponential backoff if needed
 
 **Build Failures**
@@ -237,7 +239,7 @@ npm run typecheck  # Fix TypeScript errors
 
 **Scraping Issues**
 1. Check API key validity
-2. Verify network connectivity
+2. Verify RSS feed accessibility
 3. Monitor error logs in Vercel Functions
 
 ### Performance Issues
@@ -273,7 +275,7 @@ git push  # Triggers automatic deployment
 ### Content Moderation
 1. Monitor scraped content quality
 2. Implement content filtering rules
-3. Add reporting mechanisms
+3. Add story reporting mechanisms
 
 ## 📈 Scaling Considerations
 
@@ -306,8 +308,21 @@ git push  # Triggers automatic deployment
 
 ### Content Validation
 - Sanitize user inputs
-- Validate audio file formats
+- Validate story URLs and content
 - Implement rate limiting
+
+## 📦 Quick Start Summary
+
+**For the fastest deployment:**
+
+1. Push your code to GitHub
+2. Go to [vercel.com/new](https://vercel.com/new) and import your repo
+3. Add a Vercel Postgres database
+4. Connect the database to your project (auto-adds environment variables)
+5. Click Deploy
+6. Visit your live site and run the scraper from the Sources page
+
+**That's it!** Vercel + GitHub integration handles everything else automatically.
 
 ## 📞 Getting Help
 
@@ -330,4 +345,4 @@ If you encounter issues:
 
 ---
 
-🎉 **Congratulations!** Your Weird Sounds Discovery website is now live and ready to discover the internet's strangest audio content!
+🎉 **Congratulations!** Your Funny News Aggregator website is now live and ready to discover the internet's most entertaining news stories!

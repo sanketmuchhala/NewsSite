@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "migrate:news": "tsx scripts/migrate-news.ts"
+    "migrate:news": "tsx scripts/migrate-news.ts",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "@radix-ui/react-icons": "^1.3.2",
