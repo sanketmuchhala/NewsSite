@@ -392,7 +392,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
     return (
       <div className={`flex items-center justify-center min-h-[600px] bg-gradient-to-br from-red-900/20 via-gray-900 to-gray-800 rounded-xl border border-red-500/30 ${className}`}>
         <div className="text-center space-y-6 p-8">
-          <div className="text-red-400 text-4xl mb-4">⚠️</div>
+          <div className="text-red-400 text-4xl mb-4">!</div>
           <div className="space-y-2">
             <div className="text-white font-medium text-lg">Network Unavailable</div>
             <div className="text-gray-400 text-sm max-w-md">{error}</div>
@@ -419,20 +419,20 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
               onClick={handleFitNetwork}
               className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
             >
-              🔍 Fit All
+              Fit All
             </button>
             <button
               onClick={handleRandomFocus}
               className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
             >
-              🎯 Explore
+              Explore
             </button>
             {stats.funniestStory && (
               <button
                 onClick={handleFunniestStory}
                 className="w-full px-4 py-2.5 bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
               >
-                😂 Funniest
+                Funniest
               </button>
             )}
           </div>
@@ -530,7 +530,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
               >
-                📖 Read Story
+                Read Story
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
@@ -576,7 +576,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
         <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl px-6 py-4 text-center max-w-md opacity-0 animate-fade-in" style={{ animationDelay: '2s', animationFillMode: 'forwards' }}>
           <div className="text-blue-400 text-sm font-medium mb-2">
-            🎯 Interactive News Network
+            Interactive News Network
           </div>
           <div className="text-xs text-gray-300 leading-relaxed">
             Click nodes to read stories • Drag to explore • Scroll to zoom

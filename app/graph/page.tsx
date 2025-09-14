@@ -24,7 +24,7 @@ export default function GraphPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                🕸️ Interactive News Network
+                Interactive News Network
               </h1>
               <p className="text-gray-400 text-lg">
                 Explore the interconnected web of funny news stories through dynamic visualization
@@ -51,7 +51,7 @@ export default function GraphPage() {
         <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
           <div className="bg-gray-800/60 backdrop-blur-xl rounded-2xl px-8 py-4 text-center max-w-lg border border-gray-600/30">
             <div className="text-blue-400 text-sm font-semibold mb-2 flex items-center justify-center gap-2">
-              🎯 Interactive Network Guide
+              Interactive Network Guide
             </div>
             <div className="text-xs text-gray-300 leading-relaxed space-y-1">
               <div><strong>Click nodes</strong> to open news articles • <strong>Drag</strong> to explore relationships</div>
@@ -64,8 +64,7 @@ export default function GraphPage() {
         <div className="absolute bottom-12 left-12 z-30 pointer-events-none">
           <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl px-4 py-3 text-xs text-gray-400 max-w-xs">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-yellow-400">⚡</span>
-              <span className="font-medium">Pro Tips</span>
+              <span className="text-yellow-400">Pro Tips</span>
             </div>
             <div className="space-y-1 text-[11px] leading-relaxed">
               <div>• Larger nodes = higher funny scores</div>
