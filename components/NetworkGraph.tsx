@@ -241,20 +241,23 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
       physics: {
         enabled: true,
         stabilization: { 
-          iterations: 150,
-          updateInterval: 25
+          iterations: 200,
+          updateInterval: 25,
+          onlyDynamicEdges: false,
+          fit: true
         },
         barnesHut: {
-          gravitationalConstant: -12000,
-          centralGravity: 0.35,
-          springLength: 120,
-          springConstant: 0.05,
-          damping: 0.12,
-          avoidOverlap: 0.2
+          gravitationalConstant: -15000,
+          centralGravity: 0.4,
+          springLength: 150,
+          springConstant: 0.08,
+          damping: 0.15,
+          avoidOverlap: 0.3
         },
-        maxVelocity: 40,
+        maxVelocity: 30,
         minVelocity: 0.75,
-        timestep: 0.35
+        timestep: 0.3,
+        adaptiveTimestep: true
       },
       interaction: {
         dragNodes: true,
@@ -274,6 +277,12 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
     };
 
     const network = new Network(containerRef.current, { nodes, edges }, options);
+
+    console.log(`Network initialized with ${nodes.length} nodes and ${edges.length} edges`);
+    console.log('Node IDs:', graphData.nodes.map(n => n.id));
+    console.log('All nodes data:', nodes.map(n => ({ id: n.id, label: n.label })));
+    console.log('vis-network nodes:', nodes.get());
+    console.log('vis-network edges:', edges.get());
 
     // Enhanced event handlers
     network.on('click', (params) => {
@@ -311,6 +320,32 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
     network.on('stabilizationIterationsDone', () => {
       console.log('Network stabilized - enabling smooth interactions');
       network.setOptions({ physics: { enabled: false } });
+      
+      // Debug: Check node positions
+      setTimeout(() => {
+        const positions = network.getPositions();
+        console.log('Node positions after stabilization:', positions);
+        console.log('Number of positioned nodes:', Object.keys(positions).length);
+        
+        // Check if any nodes are outside viewport
+        const canvasSize = network.getViewPosition();
+        const scale = network.getScale();
+        console.log('Canvas view position:', canvasSize);
+        console.log('Canvas scale:', scale);
+        
+        // Get canvas dimensions
+        const canvas = containerRef.current?.querySelector('canvas');
+        if (canvas) {
+          console.log('Canvas dimensions:', { width: canvas.width, height: canvas.height });
+        }
+        
+        network.fit({
+          animation: {
+            duration: 1000,
+            easingFunction: 'easeInOutQuad'
+          }
+        });
+      }, 100);
     });
 
     networkRef.current = network;
@@ -572,17 +607,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
         </div>
       </div>
 
-      {/* Instructions Overlay */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-        <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl px-6 py-4 text-center max-w-md opacity-0 animate-fade-in" style={{ animationDelay: '2s', animationFillMode: 'forwards' }}>
-          <div className="text-blue-400 text-sm font-medium mb-2">
-            Interactive News Network
-          </div>
-          <div className="text-xs text-gray-300 leading-relaxed">
-            Click nodes to read stories • Drag to explore • Scroll to zoom
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }

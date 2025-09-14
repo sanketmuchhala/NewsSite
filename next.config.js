@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['img.youtube.com', 'freesound.org', 'archive.org'],
+    domains: ['img.youtube.com'],
   },
   async headers() {
     return [

@@ -82,7 +82,7 @@ export default function GraphPage() {
           modal.innerHTML = `
             <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] modal-backdrop">
               <div class="bg-gray-900 rounded-lg p-6 max-w-md mx-4 border border-primary/30">
-                <h3 class="text-xl font-bold text-primary mb-4">🕸️ Network Guide</h3>
+                <h3 class="text-xl font-bold text-primary mb-4">Network Guide</h3>
                 <div class="space-y-3 text-sm text-gray-300">
                   <div><strong>Nodes:</strong> Each circle represents a news story</div>
                   <div><strong>Size:</strong> Larger = higher funny score</div>
@@ -91,14 +91,14 @@ export default function GraphPage() {
                   <div><strong>Clustering:</strong> Similar stories naturally group together</div>
                 </div>
                 <div class="mt-6 space-y-2 text-xs text-gray-400">
-                  <div>🖱️ <strong>Click:</strong> Open story</div>
-                  <div>🖱️ <strong>Drag:</strong> Move nodes around</div>
-                  <div>🖱️ <strong>Scroll:</strong> Zoom in/out</div>
-                  <div>⌨️ <strong>Buttons:</strong> Use controls for navigation</div>
+                  <div><strong>Click:</strong> Open story</div>
+                  <div><strong>Drag:</strong> Move nodes around</div>
+                  <div><strong>Scroll:</strong> Zoom in/out</div>
+                  <div><strong>Buttons:</strong> Use controls for navigation</div>
                 </div>
                 <button onclick="this.parentElement.parentElement.remove()"
                         class="mt-6 w-full px-4 py-2 bg-primary hover:bg-primary/80 rounded text-white transition-colors">
-                  Got it! ✨
+                  Got it!
                 </button>
               </div>
             </div>

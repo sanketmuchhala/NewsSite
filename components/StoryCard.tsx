@@ -65,11 +65,11 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
 
   const getSourceIcon = (sourceType?: string) => {
     switch (sourceType) {
-      case 'reddit': return '🚀';
-      case 'twitter': return '🐦';
-      case 'rss': return '📰';
-      case 'api': return '🔌';
-      default: return '📰';
+      case 'reddit': return 'R';
+      case 'twitter': return 'T';
+      case 'rss': return 'RSS';
+      case 'api': return 'API';
+      default: return 'N';
     }
   };
 
@@ -170,7 +170,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
                 variant="outline" 
                 className={`${getFunnyScoreColor(story.funny_score)} border-0 font-medium`}
               >
-                😂 {story.funny_score}%
+                Funny {story.funny_score}%
               </Badge>
             )}
             

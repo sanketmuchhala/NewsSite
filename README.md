@@ -274,4 +274,4 @@ For support and questions:
 
 ---
 
-Built with ❤️ for anyone who loves hilariously absurd news stories.
+Built with care for anyone who loves hilariously absurd news stories.

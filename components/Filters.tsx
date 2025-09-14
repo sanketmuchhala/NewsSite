@@ -16,7 +16,7 @@ const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
   const sources = [
     { id: 'reddit', name: 'Reddit', icon: '🚀' },
     { id: 'twitter', name: 'Twitter', icon: '🐦' },
-    { id: 'rss', name: 'RSS Feeds', icon: '📰' },
+    { id: 'rss', name: 'RSS Feeds', icon: 'RSS' },
     { id: 'api', name: 'News APIs', icon: '🔌' },
   ];
 

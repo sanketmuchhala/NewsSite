@@ -50,7 +50,7 @@ export default function RootLayout({
                 {/* Logo and Brand */}
                 <Link href="/" className="flex items-center space-x-2 group">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-lg transition-transform group-hover:scale-110">
-                    😂
+                    F
                   </div>
                   <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
                     FunnyNews
@@ -111,7 +111,7 @@ export default function RootLayout({
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <div className="flex items-center justify-center w-6 h-6 rounded bg-primary text-primary-foreground font-bold text-sm">
-                      😂
+                      F
                     </div>
                     <span className="font-bold text-foreground">FunnyNews</span>
                   </div>

@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "scrape": "node scripts/scrape.js",
     "migrate:news": "tsx scripts/migrate-news.ts"
   },
   "dependencies": {
@@ -27,8 +26,7 @@
     "rss-parser": "^3.13.0",
     "tailwind-merge": "^3.3.1",
     "vis-data": "^7.1.9",
-    "vis-network": "^9.1.9",
-    "youtube-search-api": "^1.2.1"
+    "vis-network": "^9.1.9"
   },
   "devDependencies": {
     "@types/node": "^20",

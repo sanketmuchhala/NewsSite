@@ -233,7 +233,7 @@ function HomePageContent() {
                   </div>
                 ) : !hasMore && stories.length > 0 ? (
                   <div className="text-center">
-                    <div className="text-4xl mb-4">🎉</div>
+                    <div className="text-4xl mb-4">✓</div>
                     <p className="text-lg font-medium text-foreground mb-2">You've reached the end!</p>
                     <p className="text-muted-foreground">Check back later for more laughs</p>
                   </div>
@@ -242,7 +242,7 @@ function HomePageContent() {
             </>
           ) : !loading ? (
             <div className="text-center py-16">
-              <div className="text-6xl mb-6">🔍</div>
+              <div className="text-6xl mb-6">?</div>
               <h3 className="text-2xl font-bold text-foreground mb-4">No stories found</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 We couldn't find any funny stories matching your criteria. Try adjusting your filters or check back later!
