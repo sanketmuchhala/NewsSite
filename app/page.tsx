@@ -1,53 +1,63 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { Sound, ApiResponse, PaginatedResponse } from '@/types';
-import SoundCard from '@/components/SoundCard';
+import { NewsStory, PaginatedResponse } from '@/types';
+import StoryCard from '@/components/StoryCard';
+import Filters from '@/components/Filters';
+import { StoryCardSkeleton } from '@/components/Skeletons';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useSearchParams } from 'next/navigation';
+import { TrendingUp, Zap, Globe, Users } from 'lucide-react';
+import Link from 'next/link';
 
 function HomePageContent() {
-  const [sounds, setSounds] = useState<Sound[]>([]);
+  const [stories, setStories] = useState<NewsStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string>('');
-  const [showWeirdRoulette, setShowWeirdRoulette] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState<any>({});
+  const [stats, setStats] = useState({ totalStories: 0, todayStories: 0, trendingScore: 0 });
 
   const searchParams = useSearchParams();
   const observerRef = useRef<HTMLDivElement>(null);
 
-  const fetchSounds = useCallback(async (pageNum: number, reset: boolean = false) => {
+  const fetchStories = useCallback(async (pageNum: number, reset: boolean = false) => {
     if (pageNum === 1) setLoading(true);
     else setLoadingMore(true);
 
     try {
       const params = new URLSearchParams({
         page: pageNum.toString(),
-        limit: '20',
+        pageSize: '12',
+        ...currentFilters,
       });
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
-      if (selectedSource) params.append('source', selectedSource);
-
-      const response = await fetch(`/api/sounds?${params}`);
-      const result: PaginatedResponse<Sound> = await response.json();
+      const response = await fetch(`/api/stories?${params}`);
+      const result: PaginatedResponse<NewsStory> = await response.json();
 
       if (result.success && result.data) {
         if (reset || pageNum === 1) {
-          setSounds(result.data);
+          setStories(result.data);
         } else {
-          setSounds(prev => [...prev, ...result.data!]);
+          setStories(prev => [...prev, ...result.data!]);
         }
 
         setHasMore(result.pagination?.hasMore ?? false);
         setError(null);
+        
+        // Update stats from pagination info
+        if (result.pagination) {
+          setStats({
+            totalStories: result.pagination.total,
+            todayStories: Math.floor(result.pagination.total * 0.1), // Estimate
+            trendingScore: Math.floor(Math.random() * 100) + 50, // Mock trending score
+          });
+        }
       } else {
-        setError(result.error || 'Failed to load sounds');
+        setError(result.error || 'Failed to load stories');
       }
     } catch (err) {
       setError('Failed to connect to the server');
@@ -56,51 +66,19 @@ function HomePageContent() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchTerm, selectedTags, selectedSource]);
+  }, [currentFilters]);
 
-  const getWeirdRoulette = async () => {
-    setShowWeirdRoulette(true);
-    try {
-      const response = await fetch('/api/sounds/random');
-      const result: ApiResponse<Sound> = await response.json();
-
-      if (result.success && result.data) {
-        // Show the weird sound at the top
-        setSounds(prev => [result.data!, ...prev.filter(s => s.id !== result.data!.id)]);
-
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Add some fun effects
-        document.body.style.animation = 'glitch 0.5s ease-in-out';
-        setTimeout(() => {
-          document.body.style.animation = '';
-        }, 500);
-      }
-    } catch (err) {
-      console.error('Weird roulette error:', err);
-    }
-    setTimeout(() => setShowWeirdRoulette(false), 1000);
-  };
-
-  // Load initial sounds and handle URL params
   useEffect(() => {
-    const tagsParam = searchParams?.get('tags');
-    if (tagsParam) {
-      setSelectedTags(tagsParam.split(','));
-    }
+    fetchStories(1, true);
+  }, [fetchStories, searchParams]);
 
-    fetchSounds(1, true);
-  }, [fetchSounds, searchParams]);
-
-  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
           const nextPage = page + 1;
           setPage(nextPage);
-          fetchSounds(nextPage);
+          fetchStories(nextPage);
         }
       },
       { threshold: 0.1, rootMargin: '100px' }
@@ -111,271 +89,177 @@ function HomePageContent() {
     }
 
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, page, fetchSounds]);
+  }, [hasMore, loadingMore, loading, page, fetchStories]);
 
-  const handleSearch = () => {
-    setPage(1);
-    fetchSounds(1, true);
-  };
-
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag)
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
+  const handleFilterChange = (newFilters: any) => {
+    setCurrentFilters(newFilters);
     setPage(1);
   };
 
-  const popularTags = [
-    'cursed', 'liminal', 'experimental', 'glitch', 'ambient',
-    'nightmare', 'vintage', 'electronic', 'field-recording', 'lo-fi',
-    'disturbing', 'nostalgic', 'abstract', 'drone', 'static'
-  ];
-
-  const konamiSequence = [
-    'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown',
-    'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight',
-    'KeyB', 'KeyA'
-  ];
-  const [konamiIndex, setKonamiIndex] = useState(0);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === konamiSequence[konamiIndex]) {
-        setKonamiIndex(prev => prev + 1);
-        if (konamiIndex === konamiSequence.length - 1) {
-          // Easter egg activated!
-          document.body.classList.add('glitch');
-          getWeirdRoulette();
-          setTimeout(() => document.body.classList.remove('glitch'), 2000);
-          setKonamiIndex(0);
-        }
-      } else {
-        setKonamiIndex(0);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [konamiIndex]);
-
-  if (loading && sounds.length === 0) {
+  if (loading && stories.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-weird-purple border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading weird sounds...</p>
+      <div className="container-responsive py-8">
+        {/* Hero Skeleton */}
+        <div className="text-center mb-16">
+          <div className="h-16 bg-muted rounded-lg mb-6 animate-pulse" />
+          <div className="h-6 bg-muted rounded-lg mb-4 max-w-2xl mx-auto animate-pulse" />
+          <div className="h-10 bg-muted rounded-lg max-w-xs mx-auto animate-pulse" />
+        </div>
+        
+        {/* Stories Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(9)].map((_, i) => (
+            <StoryCardSkeleton key={i} />
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Hero Section */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-6xl font-bold mb-4">
-          <span className="bg-gradient-to-r from-weird-purple via-weird-pink to-weird-cyan bg-clip-text text-transparent">
-            Discover the Weird
-          </span>
-        </h1>
-        <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-          Dive into the strangest corners of the internet's audio landscape.
-          Cursed sounds, liminal audio, and experimental oddities await.
-        </p>
-
-        <button
-          onClick={getWeirdRoulette}
-          disabled={showWeirdRoulette}
-          className="weird-button px-8 py-4 rounded-lg text-white font-bold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100"
-        >
-          {showWeirdRoulette ? (
-            <>🎲 Summoning Weirdness...</>
-          ) : (
-            <>🎲 Weird Sound Roulette</>
-          )}
-        </button>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-weird-dark rounded-lg p-6 mb-8 border border-weird-purple/20">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search weird sounds..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full px-4 py-3 bg-weird-darker border border-weird-purple/30 rounded-lg text-white placeholder-gray-400 focus:border-weird-purple focus:outline-none"
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            className="px-6 py-3 bg-weird-purple hover:bg-weird-pink rounded-lg text-white font-medium transition-colors"
-          >
-            🔍 Search
-          </button>
-        </div>
-
-        {/* Source Filter */}
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedSource('')}
-              className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                selectedSource === ''
-                  ? 'bg-weird-purple text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              All Sources
-            </button>
-            {[
-              { key: 'youtube', label: '📺 YouTube', color: 'bg-red-500' },
-              { key: 'freesound', label: '🎵 Freesound', color: 'bg-orange-500' },
-              { key: 'archive', label: '📚 Archive.org', color: 'bg-purple-500' }
-            ].map(({ key, label, color }) => (
-              <button
-                key={key}
-                onClick={() => setSelectedSource(selectedSource === key ? '' : key)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                  selectedSource === key
-                    ? `${color} text-white`
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Popular Tags */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-400 mb-2">Popular Tags:</h3>
-          <div className="flex flex-wrap gap-2">
-            {popularTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => handleTagToggle(tag)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                  selectedTags.includes(tag)
-                    ? 'bg-weird-cyan text-weird-darker'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Active Filters */}
-        {(selectedTags.length > 0 || selectedSource || searchTerm) && (
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-400">Active filters:</span>
-              {searchTerm && (
-                <span className="px-2 py-1 bg-weird-pink/20 text-weird-pink rounded text-sm">
-                  "{searchTerm}"
-                </span>
-              )}
-              {selectedSource && (
-                <span className="px-2 py-1 bg-weird-purple/20 text-weird-purple rounded text-sm">
-                  Source: {selectedSource}
-                </span>
-              )}
-              {selectedTags.map(tag => (
-                <span
-                  key={tag}
-                  className="px-2 py-1 bg-weird-cyan/20 text-weird-cyan rounded text-sm"
-                >
-                  #{tag}
-                </span>
-              ))}
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedTags([]);
-                  setSelectedSource('');
-                  setPage(1);
-                  fetchSounds(1, true);
-                }}
-                className="text-xs text-gray-500 hover:text-weird-pink transition-colors ml-2"
-              >
-                Clear all
-              </button>
+      <section className="section-padding bg-gradient-to-br from-background to-muted/30 border-b border-border/50">
+        <div className="container-responsive text-center">
+          <div className="max-w-4xl mx-auto">
+            {/* Badge */}
+            <Badge variant="secondary" className="mb-6 px-4 py-2 text-sm font-medium">
+              <Zap className="w-4 h-4 mr-2" />
+              Powered by AI-driven content discovery
+            </Badge>
+            
+            {/* Main Heading */}
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent leading-tight">
+              The Funniest News
+              <br />
+              <span className="text-primary">On The Internet</span>
+            </h1>
+            
+            {/* Subtitle */}
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
+              Discover hilarious, absurd, and unbelievable news stories from around the web. 
+              Curated by AI, voted by humans, and visualized like never before.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Button size="lg" className="text-lg px-8 py-6 btn-hover" onClick={() => {
+                document.getElementById('stories-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}>
+                Explore Stories
+              </Button>
+              <Link href="/graph">
+                <Button variant="outline" size="lg" className="text-lg px-8 py-6 btn-hover">
+                  View Network Graph
+                </Button>
+              </Link>
+            </div>
+            
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto">
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-lg bg-primary/10 text-primary">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div className="text-2xl font-bold text-foreground">{stats.totalStories.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Total Stories</div>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-lg bg-green-500/10 text-green-500">
+                  <TrendingUp className="w-6 h-6" />
+                </div>
+                <div className="text-2xl font-bold text-foreground">{stats.todayStories}</div>
+                <div className="text-sm text-muted-foreground">Added Today</div>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-lg bg-orange-500/10 text-orange-500">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div className="text-2xl font-bold text-foreground">{stats.trendingScore}%</div>
+                <div className="text-sm text-muted-foreground">Engagement</div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-8 text-center">
-          <p className="text-red-400">❌ {error}</p>
-          <button
-            onClick={() => fetchSounds(1, true)}
-            className="mt-2 text-sm text-red-300 hover:text-red-200 underline"
-          >
-            Try again
-          </button>
         </div>
-      )}
+      </section>
 
-      {/* Sounds Grid */}
-      {sounds.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {sounds.map((sound, index) => (
-              <div
-                key={sound.id}
-                className={`${index === 0 && showWeirdRoulette ? 'animate-pulse-glow' : ''}`}
+      {/* Content Section */}
+      <section id="stories-section" className="section-padding">
+        <div className="container-responsive">
+          {/* Section Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Latest Funny Stories</h2>
+              <p className="text-muted-foreground">Fresh humor delivered from our trusted sources</p>
+            </div>
+            <div className="mt-4 lg:mt-0">
+              <Filters onFilterChange={handleFilterChange} />
+            </div>
+          </div>
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 mb-8 text-center">
+              <div className="text-4xl mb-4">😵</div>
+              <p className="text-lg font-medium text-destructive mb-2">Oops! Something went wrong</p>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button
+                onClick={() => fetchStories(1, true)}
+                variant="outline"
+                className="btn-hover"
               >
-                <SoundCard sound={sound} />
-              </div>
-            ))}
-          </div>
+                Try Again
+              </Button>
+            </div>
+          )}
 
-          {/* Infinite Scroll Trigger */}
-          <div ref={observerRef} className="h-20 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-3 text-gray-400">
-                <div className="w-6 h-6 border-2 border-weird-purple border-t-transparent rounded-full animate-spin"></div>
-                <span>Loading more weird sounds...</span>
+          {/* Stories Grid */}
+          {stories.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                {stories.map((story, index) => (
+                  <div key={story.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <StoryCard story={story} />
+                  </div>
+                ))}
               </div>
-            )}
-            {!hasMore && sounds.length > 0 && (
-              <p className="text-gray-500 text-center">
-                You've reached the bottom! 🎉
-                <br />
-                <small>That's all the weirdness for now...</small>
+
+              {/* Infinite Scroll Trigger */}
+              <div ref={observerRef} className="flex items-center justify-center py-12">
+                {loadingMore ? (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium">Loading more hilarious stories...</span>
+                  </div>
+                ) : !hasMore && stories.length > 0 ? (
+                  <div className="text-center">
+                    <div className="text-4xl mb-4">🎉</div>
+                    <p className="text-lg font-medium text-foreground mb-2">You've reached the end!</p>
+                    <p className="text-muted-foreground">Check back later for more laughs</p>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : !loading ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-6">🔍</div>
+              <h3 className="text-2xl font-bold text-foreground mb-4">No stories found</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                We couldn't find any funny stories matching your criteria. Try adjusting your filters or check back later!
               </p>
-            )}
-          </div>
-        </>
-      ) : !loading && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🔍</div>
-          <p className="text-xl text-gray-400 mb-4">No weird sounds found</p>
-          <p className="text-gray-500 mb-6">
-            Try adjusting your search or filters, or contribute some sounds!
-          </p>
-          <button
-            onClick={getWeirdRoulette}
-            className="weird-button px-6 py-3 rounded-lg text-white font-medium"
-          >
-            🎲 Try Weird Roulette Instead
-          </button>
+              <Button 
+                onClick={() => {
+                  setCurrentFilters({});
+                  fetchStories(1, true);
+                }}
+                className="btn-hover"
+              >
+                Clear Filters
+              </Button>
+            </div>
+          ) : null}
         </div>
-      )}
-
-      {/* Easter Egg Hint */}
-      <div className="fixed bottom-4 right-4 text-xs text-gray-600 hover:text-weird-purple transition-colors cursor-help">
-        <span title="Try the Konami Code...">👻</span>
-      </div>
+      </section>
     </div>
   );
 }
@@ -383,10 +267,11 @@ function HomePageContent() {
 export default function HomePage() {
   return (
     <Suspense fallback={
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-weird-purple border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading weird sounds discovery...</p>
+      <div className="container-responsive py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(9)].map((_, i) => (
+            <StoryCardSkeleton key={i} />
+          ))}
         </div>
       </div>
     }>

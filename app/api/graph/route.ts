@@ -1,47 +1,54 @@
 import { NextResponse } from 'next/server';
 import { getGraphData } from '@/lib/db';
-import { GraphData, GraphNode, GraphEdge } from '@/types';
 
 export async function GET() {
+  console.log('Graph API called');
   try {
+    console.log('Getting graph data...');
     const result = await getGraphData();
+    console.log('Graph data result:', result);
 
     if (!result.success || !result.data) {
+      console.log('Graph data fetch failed:', result.error);
       return NextResponse.json(
         { error: result.error || 'Failed to fetch graph data' },
         { status: 500 }
       );
     }
 
-    const { sounds, relationships } = result.data;
+    const { stories, relationships } = result.data;
+    console.log('Stories count:', stories.length, 'Relationships count:', relationships.length);
 
     // Transform data for vis-network
-    const nodes: GraphNode[] = sounds.map(sound => ({
-      id: sound.id,
-      label: sound.title.length > 30 ? sound.title.substring(0, 30) + '...' : sound.title,
-      title: `${sound.title}\nWeirdness: ${sound.weirdness_score}/10\nTags: ${sound.tags.join(', ')}`,
-      color: getNodeColor(sound.source_type, sound.weirdness_score),
-      size: Math.max(10, sound.weirdness_score * 3),
-      sound
+    const nodes = stories.map(story => ({
+      id: story.id,
+      label: story.title.length > 30 ? story.title.substring(0, 30) + '...' : story.title,
+      title: `${story.title}\nFunny Score: ${story.funny_score || 0}/100\nTags: ${(story.tags || []).join(', ')}\nSource: ${story.source}`,
+      color: getNodeColor(story.source_type || 'rss', story.funny_score || 50),
+      size: Math.max(15, Math.min(30, (story.funny_score || 50) * 0.3)),
+      font: { size: 12 },
+      story
     }));
 
-    const edges: GraphEdge[] = relationships.map(rel => ({
-      from: rel.sound_id_1,
-      to: rel.sound_id_2,
+    const edges = relationships.map(rel => ({
+      from: rel.source_id,
+      to: rel.target_id,
       label: rel.relationship_type,
       color: getEdgeColor(rel.relationship_type),
-      width: Math.max(1, rel.strength / 2),
+      width: Math.max(1, (rel.strength || 0.5) * 3),
+      font: { size: 10 },
       relationship: rel
     }));
 
-    const graphData: GraphData = { nodes, edges };
+    const graphData = { nodes, edges };
+    console.log('Sending graph data:', { nodeCount: nodes.length, edgeCount: edges.length });
 
     return NextResponse.json({
       success: true,
       data: graphData
     });
   } catch (error) {
-    console.error('API error:', error);
+    console.error('Graph API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -49,26 +56,33 @@ export async function GET() {
   }
 }
 
-function getNodeColor(sourceType: string, weirdnessScore: number): string {
+function getNodeColor(sourceType: string, funnyScore: number): string {
   const baseColors = {
-    youtube: '#FF0000',
-    freesound: '#FF6600',
-    archive: '#9900CC'
+    reddit: '#FF4500',
+    rss: '#FF6600', 
+    twitter: '#1DA1F2',
+    api: '#9900CC'
   };
 
-  // Adjust opacity based on weirdness score
-  const opacity = Math.max(0.6, weirdnessScore / 10);
+  // Adjust intensity based on funny score
+  const intensity = Math.max(0.6, funnyScore / 100);
   const color = baseColors[sourceType as keyof typeof baseColors] || '#666666';
-
-  return color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+  
+  // Convert hex to RGB and apply intensity
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  
+  return `rgba(${r}, ${g}, ${b}, ${intensity})`;
 }
 
 function getEdgeColor(relationshipType: string): string {
   const colors = {
     similar: '#10B981',
-    tag_match: '#06B6D4',
-    sequence: '#8B5CF6',
-    remix: '#EC4899'
+    related: '#06B6D4',
+    follow_up: '#8B5CF6',
+    contradicts: '#EC4899',
+    updates: '#F59E0B'
   };
 
   return colors[relationshipType as keyof typeof colors] || '#666666';

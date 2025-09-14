@@ -1,406 +1,276 @@
-import { YouTubeScraper } from './youtube';
-import { FreesoundScraper } from './freesound';
-import { ArchiveScraper } from './archive';
-import { Sound } from '@/types';
-import { createSound, createSoundRelationship } from '@/lib/db';
+
+import { RedditScraper } from './reddit';
+import { TwitterScraper } from './twitter';
+import { RssScraper } from './rss';
+import { NewsStory } from '@/types';
+import { createStory, createStoryRelationship } from '@/lib/db';
 import { geminiClient } from '@/lib/ai/gemini';
 
-export interface ScraperConfig {
-  youtube: {
-    apiKey: string;
-    enabled: boolean;
+interface ScraperConfig {
+  reddit?: {
+    clientId?: string;
+    clientSecret?: string;
   };
-  freesound: {
-    apiKey: string;
-    enabled: boolean;
+  twitter?: {
+    apiKey?: string;
+    apiSecret?: string;
   };
-  archive: {
-    enabled: boolean;
+  rss?: {
+    feeds?: string[];
   };
 }
 
-export class WeirdSoundsScraper {
-  private youtube?: YouTubeScraper;
-  private freesound?: FreesoundScraper;
-  private archive?: ArchiveScraper;
+export class NewsStoryScraper {
+  private redditScraper: RedditScraper;
+  private twitterScraper: TwitterScraper;
+  private rssScraper: RssScraper;
 
-  constructor(config: ScraperConfig) {
-    if (config.youtube.enabled && config.youtube.apiKey) {
-      this.youtube = new YouTubeScraper(config.youtube.apiKey);
+  constructor(config: ScraperConfig = {}) {
+    this.redditScraper = new RedditScraper(config.reddit?.clientId, config.reddit?.clientSecret);
+    this.twitterScraper = new TwitterScraper(config.twitter?.apiKey, config.twitter?.apiSecret);
+    this.rssScraper = new RssScraper(config.rss?.feeds);
+  }
+
+  async scrapeReddit(limit: number = 10): Promise<NewsStory[]> {
+    const stories: NewsStory[] = [];
+    const subreddits = this.redditScraper.getFunnyNewsSubreddits();
+    
+    console.log(`Scraping Reddit from ${subreddits.length} subreddits...`);
+    
+    for (const subreddit of subreddits.slice(0, 5)) { // Limit to first 5 subreddits
+      try {
+        const subredditStories = await this.redditScraper.getHotStories(subreddit, Math.ceil(limit / 5));
+        stories.push(...subredditStories);
+        
+        // Small delay to be respectful to Reddit's API
+        await this.delay(500);
+      } catch (error) {
+        console.error(`Failed to scrape r/${subreddit}:`, error);
+        continue;
+      }
     }
+    
+    console.log(`Scraped ${stories.length} stories from Reddit`);
+    return stories.slice(0, limit);
+  }
 
-    if (config.freesound.enabled && config.freesound.apiKey) {
-      this.freesound = new FreesoundScraper(config.freesound.apiKey);
+  async scrapeTwitter(limit: number = 10): Promise<NewsStory[]> {
+    const stories: NewsStory[] = [];
+    
+    try {
+      const hashtags = this.twitterScraper.getTrendingHashtags();
+      for (const hashtag of hashtags) {
+        const hashtagStories = await this.twitterScraper.searchByHashtag(hashtag, limit);
+        stories.push(...hashtagStories);
+      }
+    } catch (error) {
+      console.error('Twitter scraping failed:', error);
     }
+    
+    console.log(`Scraped ${stories.length} stories from Twitter`);
+    return stories;
+  }
 
-    if (config.archive.enabled) {
-      this.archive = new ArchiveScraper();
+  async scrapeRSS(limit: number = 20): Promise<NewsStory[]> {
+    console.log('Scraping RSS feeds...');
+    const stories = await this.rssScraper.parseAllFeeds(Math.ceil(limit / 10));
+    console.log(`Scraped ${stories.length} stories from RSS feeds`);
+    return stories.slice(0, limit);
+  }
+
+  async enhanceNewsStoryWithAI(story: NewsStory): Promise<NewsStory> {
+    try {
+      console.log(`Enhancing story with AI: ${story.title}`);
+      
+      // Use Gemini to enhance the story
+      const [enhancedSummary, aiTags, aiFunnyScore] = await Promise.all([
+        geminiClient.generateNewsStoryAnalysis(
+          story.title, 
+          story.source, 
+          story.tags || []
+        ),
+        geminiClient.categorizeNewsStory(
+          story.title, 
+          story.source, 
+          story.summary || undefined
+        ),
+        geminiClient.calculateFunnyScore(
+          story.title, 
+          story.source, 
+          story.summary || undefined, 
+          story.tags || []
+        )
+      ]);
+      
+      // Merge AI-generated tags with existing tags
+      const combinedTags = [...new Set([
+        ...(story.tags || []),
+        ...(aiTags || [])
+      ])].slice(0, 8); // Limit to 8 tags total
+      
+      return {
+        ...story,
+        summary: enhancedSummary || story.summary,
+        tags: combinedTags,
+        funny_score: Math.round((aiFunnyScore + (story.funny_score || 50)) / 2), // Average AI and initial score
+        metadata: {
+          ...story.metadata,
+          ai_enhanced: true,
+          ai_funny_score: aiFunnyScore,
+          ai_tags: aiTags,
+          enhanced_at: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('AI enhancement failed for story:', story.title, error);
+      return story; // Return original story if AI enhancement fails
     }
   }
 
-  async scrapeAll(maxPerSource: number = 10): Promise<{
-    success: boolean;
-    totalScraped: number;
-    errors: string[];
-  }> {
-    const results = {
-      success: true,
-      totalScraped: 0,
-      errors: [] as string[]
-    };
-
-    console.log('🔍 Starting weird sounds scraping...');
-
-    // Scrape from all available sources
-    const scrapingTasks = [];
-
-    if (this.youtube) {
-      scrapingTasks.push(this.scrapeYouTube(maxPerSource));
+  async generateStoryRelationships(stories: NewsStory[]): Promise<void> {
+    console.log(`Generating relationships for ${stories.length} stories...`);
+    
+    // Simple relationship generation based on shared tags and similar titles
+    for (let i = 0; i < stories.length; i++) {
+      for (let j = i + 1; j < stories.length; j++) {
+        const story1 = stories[i];
+        const story2 = stories[j];
+        
+        if (!story1.id || !story2.id) continue;
+        
+        const relationship = this.calculateStoryRelationship(story1, story2);
+        
+        if (relationship.strength > 0.3) {
+          try {
+            await createStoryRelationship(
+              story1.id,
+              story2.id,
+              relationship.type,
+              relationship.strength
+            );
+          } catch (error) {
+            console.error('Failed to create story relationship:', error);
+          }
+        }
+      }
     }
-
-    if (this.freesound) {
-      scrapingTasks.push(this.scrapeFreesound(maxPerSource));
+  }
+  
+  private calculateStoryRelationship(story1: NewsStory, story2: NewsStory): {
+    type: 'similar' | 'follow_up' | 'related';
+    strength: number;
+  } {
+    let strength = 0;
+    let type: 'similar' | 'follow_up' | 'related' = 'related';
+    
+    // Check shared tags
+    const sharedTags = (story1.tags || []).filter(tag => 
+      (story2.tags || []).includes(tag)
+    );
+    strength += sharedTags.length * 0.2;
+    
+    // Check similar sources
+    if (story1.source === story2.source) {
+      strength += 0.3;
     }
-
-    if (this.archive) {
-      scrapingTasks.push(this.scrapeArchive(maxPerSource));
+    
+    // Check title similarity (simple word matching)
+    const words1 = story1.title.toLowerCase().split(/\s+/);
+    const words2 = story2.title.toLowerCase().split(/\s+/);
+    const commonWords = words1.filter(word => 
+      word.length > 3 && words2.includes(word)
+    );
+    strength += commonWords.length * 0.1;
+    
+    // Determine relationship type
+    if (strength > 0.7) {
+      type = 'similar';
+    } else if (story1.source === story2.source && strength > 0.4) {
+      type = 'follow_up';
     }
+    
+    return { type, strength: Math.min(strength, 1.0) };
+  }
 
-    if (scrapingTasks.length === 0) {
-      results.errors.push('No scrapers enabled');
-      results.success = false;
+  async scrapeAll(maxPerSource: number = 15): Promise<{ success: number; failed: number; total: number }> {
+    console.log('Starting comprehensive news scraping...');
+    
+    const results = { success: 0, failed: 0, total: 0 };
+    
+    try {
+      // Scrape from all sources
+      const [redditStories, rssStories, twitterStories] = await Promise.allSettled([
+        this.scrapeReddit(maxPerSource),
+        this.scrapeRSS(maxPerSource),
+        this.scrapeTwitter(maxPerSource)
+      ]);
+      
+      const allStories: NewsStory[] = [];
+      
+      // Collect results from settled promises
+      if (redditStories.status === 'fulfilled') {
+        allStories.push(...redditStories.value);
+      }
+      if (rssStories.status === 'fulfilled') {
+        allStories.push(...rssStories.value);
+      }
+      if (twitterStories.status === 'fulfilled') {
+        allStories.push(...twitterStories.value);
+      }
+      
+      console.log(`Total stories collected: ${allStories.length}`);
+      results.total = allStories.length;
+      
+      // Remove duplicates based on URL
+      const uniqueStories = this.removeDuplicates(allStories);
+      console.log(`Unique stories after deduplication: ${uniqueStories.length}`);
+      
+      // Enhance stories with AI and save to database
+      for (const story of uniqueStories) {
+        try {
+          const enhancedStory = await this.enhanceNewsStoryWithAI(story);
+          const savedResult = await createStory(enhancedStory);
+          
+          if (savedResult.success && savedResult.data?.id) {
+            enhancedStory.id = savedResult.data.id;
+            results.success++;
+          } else {
+            results.failed++;
+          }
+          
+          // Small delay to prevent overwhelming the AI API
+          await this.delay(100);
+        } catch (error) {
+          console.error('Failed to save story:', story.title, error);
+          results.failed++;
+        }
+      }
+      
+      // Generate story relationships
+      await this.generateStoryRelationships(uniqueStories.filter(s => s.id));
+      
+      console.log(`Scraping complete: ${results.success} saved, ${results.failed} failed`);
       return results;
+      
+    } catch (error) {
+      console.error('Scraping process failed:', error);
+      throw error;
     }
-
-    // Execute all scraping tasks in parallel
-    const scrapingResults = await Promise.allSettled(scrapingTasks);
-
-    scrapingResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        results.totalScraped += result.value.scraped;
-        if (result.value.errors.length > 0) {
-          results.errors.push(...result.value.errors);
-        }
-      } else {
-        results.errors.push(`Scraper ${index} failed: ${result.reason}`);
+  }
+  
+  private removeDuplicates(stories: NewsStory[]): NewsStory[] {
+    const seen = new Set<string>();
+    return stories.filter(story => {
+      const key = story.url.toLowerCase();
+      if (seen.has(key)) {
+        return false;
       }
+      seen.add(key);
+      return true;
     });
-
-    if (results.errors.length > 0) {
-      results.success = false;
-    }
-
-    console.log(`✅ Scraping completed. Total scraped: ${results.totalScraped}`);
-    if (results.errors.length > 0) {
-      console.warn('⚠️ Scraping errors:', results.errors);
-    }
-
-    return results;
   }
-
-  private async scrapeYouTube(maxSounds: number): Promise<{ scraped: number; errors: string[] }> {
-    if (!this.youtube) {
-      return { scraped: 0, errors: ['YouTube scraper not initialized'] };
-    }
-
-    const result = { scraped: 0, errors: [] as string[] };
-
-    try {
-      console.log('📺 Scraping YouTube...');
-
-      const queries = this.youtube.getWeirdQueries();
-      const soundsPerQuery = Math.ceil(maxSounds / Math.min(queries.length, 3));
-
-      // Use top 3 queries to avoid rate limiting
-      for (const query of queries.slice(0, 3)) {
-        try {
-          console.log(`  🔍 YouTube query: "${query}"`);
-          const sounds = await this.youtube.searchWeirdSounds(query, soundsPerQuery);
-
-          for (const soundData of sounds) {
-            try {
-              // Enhance with AI if available
-              const enhancedData = await this.enhanceWithAI(soundData);
-
-              const dbResult = await createSound(enhancedData);
-              if (dbResult.success) {
-                result.scraped++;
-                console.log(`    ✅ Added: ${enhancedData.title} ${enhancedData.description !== soundData.description ? '(AI enhanced)' : ''}`);
-              } else {
-                result.errors.push(`Failed to save YouTube sound: ${dbResult.error}`);
-              }
-            } catch (error) {
-              result.errors.push(`Error saving YouTube sound: ${error}`);
-            }
-          }
-        } catch (error) {
-          result.errors.push(`YouTube query "${query}" failed: ${error}`);
-        }
-
-        // Add delay to respect rate limits
-        await this.delay(1000);
-      }
-    } catch (error) {
-      result.errors.push(`YouTube scraping failed: ${error}`);
-    }
-
-    return result;
-  }
-
-  private async scrapeFreesound(maxSounds: number): Promise<{ scraped: number; errors: string[] }> {
-    if (!this.freesound) {
-      return { scraped: 0, errors: ['Freesound scraper not initialized'] };
-    }
-
-    const result = { scraped: 0, errors: [] as string[] };
-
-    try {
-      console.log('🎵 Scraping Freesound...');
-
-      const queries = this.freesound.getWeirdQueries();
-      const soundsPerQuery = Math.ceil(maxSounds / Math.min(queries.length, 4));
-
-      // Use top 4 queries
-      for (const query of queries.slice(0, 4)) {
-        try {
-          console.log(`  🔍 Freesound query: "${query}"`);
-          const sounds = await this.freesound.searchWeirdSounds(query, soundsPerQuery);
-
-          for (const soundData of sounds) {
-            try {
-              // Enhance with AI if available
-              const enhancedData = await this.enhanceWithAI(soundData);
-
-              const dbResult = await createSound(enhancedData);
-              if (dbResult.success) {
-                result.scraped++;
-                console.log(`    ✅ Added: ${enhancedData.title} ${enhancedData.description !== soundData.description ? '(AI enhanced)' : ''}`);
-              } else {
-                result.errors.push(`Failed to save Freesound sound: ${dbResult.error}`);
-              }
-            } catch (error) {
-              result.errors.push(`Error saving Freesound sound: ${error}`);
-            }
-          }
-        } catch (error) {
-          result.errors.push(`Freesound query "${query}" failed: ${error}`);
-        }
-
-        // Add delay to respect rate limits
-        await this.delay(1500);
-      }
-    } catch (error) {
-      result.errors.push(`Freesound scraping failed: ${error}`);
-    }
-
-    return result;
-  }
-
-  private async scrapeArchive(maxSounds: number): Promise<{ scraped: number; errors: string[] }> {
-    if (!this.archive) {
-      return { scraped: 0, errors: ['Archive scraper not initialized'] };
-    }
-
-    const result = { scraped: 0, errors: [] as string[] };
-
-    try {
-      console.log('📚 Scraping Archive.org...');
-
-      const queries = this.archive.getWeirdQueries();
-      const soundsPerQuery = Math.ceil(maxSounds / Math.min(queries.length, 3));
-
-      // Use top 3 queries
-      for (const query of queries.slice(0, 3)) {
-        try {
-          console.log(`  🔍 Archive query: "${query}"`);
-          const sounds = await this.archive.searchWeirdSounds(query, soundsPerQuery);
-
-          for (const soundData of sounds) {
-            try {
-              // Enhance with AI if available
-              const enhancedData = await this.enhanceWithAI(soundData);
-
-              const dbResult = await createSound(enhancedData);
-              if (dbResult.success) {
-                result.scraped++;
-                console.log(`    ✅ Added: ${enhancedData.title} ${enhancedData.description !== soundData.description ? '(AI enhanced)' : ''}`);
-              } else {
-                result.errors.push(`Failed to save Archive sound: ${dbResult.error}`);
-              }
-            } catch (error) {
-              result.errors.push(`Error saving Archive sound: ${error}`);
-            }
-          }
-        } catch (error) {
-          result.errors.push(`Archive query "${query}" failed: ${error}`);
-        }
-
-        // Add delay to be respectful
-        await this.delay(2000);
-      }
-    } catch (error) {
-      result.errors.push(`Archive scraping failed: ${error}`);
-    }
-
-    return result;
-  }
-
-  async generateSoundRelationships(): Promise<{ created: number; errors: string[] }> {
-    console.log('🕸️ Generating sound relationships...');
-
-    const result = { created: 0, errors: [] as string[] };
-
-    try {
-      // Get all sounds from database
-      const soundsResult = await import('@/lib/db').then(db =>
-        db.getSounds(1, 1000) // Get up to 1000 sounds
-      );
-
-      if (!soundsResult.success || !soundsResult.data) {
-        result.errors.push('Failed to fetch sounds for relationship generation');
-        return result;
-      }
-
-      const sounds = soundsResult.data;
-
-      // Generate relationships based on tag similarity
-      for (let i = 0; i < sounds.length; i++) {
-        for (let j = i + 1; j < sounds.length; j++) {
-          const sound1 = sounds[i];
-          const sound2 = sounds[j];
-
-          // Calculate tag similarity
-          const commonTags = sound1.tags.filter(tag => sound2.tags.includes(tag));
-          const similarityScore = (commonTags.length * 2) / (sound1.tags.length + sound2.tags.length);
-
-          if (similarityScore >= 0.3) { // At least 30% similarity
-            try {
-              const relationship = await createSoundRelationship(
-                sound1.id,
-                sound2.id,
-                'tag_match',
-                similarityScore * 10
-              );
-
-              if (relationship.success) {
-                result.created++;
-              } else {
-                result.errors.push(`Failed to create relationship: ${relationship.error}`);
-              }
-            } catch (error) {
-              result.errors.push(`Error creating relationship: ${error}`);
-            }
-          }
-        }
-
-        // Limit relationships per sound to avoid overwhelming the graph
-        if (result.created > 500) break;
-      }
-    } catch (error) {
-      result.errors.push(`Relationship generation failed: ${error}`);
-    }
-
-    console.log(`✅ Generated ${result.created} relationships`);
-    return result;
-  }
-
+  
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  private async enhanceWithAI(sound: Omit<Sound, 'id' | 'created_at'>): Promise<Omit<Sound, 'id' | 'created_at'>> {
-    try {
-      // Only enhance if we have Gemini API key
-      if (!process.env.GEMINI_API_KEY) {
-        return sound;
-      }
-
-      console.log(`    🤖 AI enhancing: ${sound.title}`);
-
-      // Generate enhanced description if missing or short
-      let enhancedDescription = sound.description;
-      if (!sound.description || sound.description.length < 50) {
-        const aiDescription = await geminiClient.generateSoundDescription(sound.title, sound.tags);
-        if (aiDescription) {
-          enhancedDescription = aiDescription;
-        }
-      }
-
-      // Get AI-suggested tags and merge with existing
-      const aiTags = await geminiClient.categorizeSound(sound.title, enhancedDescription);
-      const mergedTags = Array.from(new Set([...sound.tags, ...aiTags])).slice(0, 12);
-
-      // Get AI-calculated weirdness score (use as fallback or average)
-      const aiWeirdness = await geminiClient.calculateWeirdnessScore(sound.title, enhancedDescription, mergedTags);
-      const finalWeirdness = sound.weirdness_score > 0
-        ? Math.round(((sound.weirdness_score + aiWeirdness) / 2) * 10) / 10
-        : aiWeirdness;
-
-      return {
-        ...sound,
-        description: enhancedDescription,
-        tags: mergedTags,
-        weirdness_score: finalWeirdness
-      };
-
-    } catch (error) {
-      console.error('AI enhancement failed:', error);
-      return sound; // Return original if AI fails
-    }
-  }
-
-  // Manual scraping methods for specific items
-  async scrapeYouTubeVideo(videoId: string, startTime?: number, endTime?: number): Promise<{ success: boolean; error?: string }> {
-    if (!this.youtube) {
-      return { success: false, error: 'YouTube scraper not initialized' };
-    }
-
-    try {
-      const soundData = await this.youtube.scrapeSpecificVideo(videoId, startTime, endTime);
-      if (!soundData) {
-        return { success: false, error: 'Failed to fetch YouTube video data' };
-      }
-
-      const dbResult = await createSound(soundData);
-      return { success: dbResult.success, error: dbResult.error };
-    } catch (error) {
-      return { success: false, error: `Error: ${error}` };
-    }
-  }
-
-  async scrapeFreesoundById(soundId: number): Promise<{ success: boolean; error?: string }> {
-    if (!this.freesound) {
-      return { success: false, error: 'Freesound scraper not initialized' };
-    }
-
-    try {
-      const soundData = await this.freesound.getSoundById(soundId);
-      if (!soundData) {
-        return { success: false, error: 'Failed to fetch Freesound data' };
-      }
-
-      const dbResult = await createSound(soundData);
-      return { success: dbResult.success, error: dbResult.error };
-    } catch (error) {
-      return { success: false, error: `Error: ${error}` };
-    }
-  }
-
-  async scrapeArchiveItem(identifier: string): Promise<{ success: boolean; error?: string }> {
-    if (!this.archive) {
-      return { success: false, error: 'Archive scraper not initialized' };
-    }
-
-    try {
-      const soundData = await this.archive.getItemByIdentifier(identifier);
-      if (!soundData) {
-        return { success: false, error: 'Failed to fetch Archive.org data' };
-      }
-
-      const dbResult = await createSound(soundData);
-      return { success: dbResult.success, error: dbResult.error };
-    } catch (error) {
-      return { success: false, error: `Error: ${error}` };
-    }
   }
 }

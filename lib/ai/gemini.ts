@@ -16,14 +16,14 @@ export class GeminiClient {
     this.apiKey = apiKey;
   }
 
-  async generateSoundDescription(title: string, tags: string[]): Promise<string | null> {
+  async generateNewsStoryAnalysis(title: string, source: string, tags: string[]): Promise<string | null> {
     if (!this.apiKey) {
       console.warn('Gemini API key not available');
       return null;
     }
 
     try {
-      const prompt = `Write a creative and intriguing description (2-3 sentences max) for a weird sound called "${title}" with these tags: ${tags.join(', ')}. Make it mysterious and appealing to someone who enjoys strange, experimental, or liminal audio experiences. Focus on the mood and atmosphere it creates.`;
+      const prompt = `Write a witty and engaging analysis (2-3 sentences max) for this news story: "${title}" from ${source} with these tags: ${tags.join(', ')}. Make it humorous and appealing to someone who enjoys absurd, satirical, or bizarre news. Focus on what makes this story funny or interesting.`;
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: 'POST',
@@ -58,21 +58,22 @@ export class GeminiClient {
 
       return null;
     } catch (error) {
-      console.error('Error generating description with Gemini:', error);
+      console.error('Error generating news story analysis with Gemini:', error);
       return null;
     }
   }
 
-  async categorizeSound(title: string, description?: string): Promise<string[]> {
+  async categorizeNewsStory(title: string, source: string, summary?: string): Promise<string[]> {
     if (!this.apiKey) {
       return [];
     }
 
     try {
-      const prompt = `Analyze this sound and suggest 3-5 relevant tags from this list: cursed, liminal, experimental, glitch, ambient, nightmare, vintage, electronic, field-recording, lo-fi, disturbing, nostalgic, abstract, drone, static, eerie, industrial, mysterious, analog, digital.
+      const prompt = `Analyze this news story and suggest 3-5 relevant tags from this list: politics, tech, science, entertainment, sports, business, weird, absurd, florida-man, celebrity, scandal, viral, trending, breaking, investigative, opinion, satire, humor, bizarre, wtf.
 
-Sound: "${title}"
-${description ? `Description: "${description}"` : ''}
+Title: "${title}"
+Source: "${source}"
+${summary ? `Summary: "${summary}"` : ''}
 
 Return only the tags as a comma-separated list, no explanations.`;
 
@@ -109,28 +110,29 @@ Return only the tags as a comma-separated list, no explanations.`;
 
       return [];
     } catch (error) {
-      console.error('Error categorizing sound with Gemini:', error);
+      console.error('Error categorizing news story with Gemini:', error);
       return [];
     }
   }
 
-  async calculateWeirdnessScore(title: string, description?: string, tags?: string[]): Promise<number> {
+  async calculateFunnyScore(title: string, source: string, summary?: string, tags?: string[]): Promise<number> {
     if (!this.apiKey) {
-      return 5.0; // Default score
+      return 50.0; // Default score
     }
 
     try {
-      const prompt = `Rate the "weirdness" of this sound on a scale of 1-10, where:
-1-3 = Normal/conventional sounds
-4-6 = Somewhat unusual or quirky
-7-8 = Definitely weird/strange
-9-10 = Extremely bizarre/cursed/unsettling
+      const prompt = `Rate how "funny" or absurd this news story is on a scale of 1-100, where:
+1-25 = Regular news, not particularly funny
+26-50 = Mildly amusing or ironic
+51-75 = Pretty funny/absurd/bizarre
+76-100 = Hilariously absurd/peak internet content
 
-Sound: "${title}"
-${description ? `Description: "${description}"` : ''}
+Title: "${title}"
+Source: "${source}"
+${summary ? `Summary: "${summary}"` : ''}
 ${tags ? `Tags: ${tags.join(', ')}` : ''}
 
-Return only a single number between 1-10, no explanations.`;
+Return only a single number between 1-100, no explanations.`;
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: 'POST',
@@ -160,16 +162,16 @@ Return only a single number between 1-10, no explanations.`;
         const text = data.candidates[0].content.parts[0]?.text;
         if (text) {
           const score = parseFloat(text.trim());
-          if (!isNaN(score) && score >= 1 && score <= 10) {
+          if (!isNaN(score) && score >= 1 && score <= 100) {
             return score;
           }
         }
       }
 
-      return 5.0; // Default fallback
+      return 50.0; // Default fallback
     } catch (error) {
-      console.error('Error calculating weirdness score with Gemini:', error);
-      return 5.0;
+      console.error('Error calculating funny score with Gemini:', error);
+      return 50.0;
     }
   }
 }

@@ -3,7 +3,7 @@ import { geminiClient } from '@/lib/ai/gemini';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, description, tags } = await request.json();
+    const { title, source, summary, tags } = await request.json();
 
     if (!title) {
       return NextResponse.json(
@@ -12,18 +12,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate enhanced description
-    const enhancedDescription = await geminiClient.generateSoundDescription(title, tags || []);
+    if (!source) {
+      return NextResponse.json(
+        { error: 'Source is required' },
+        { status: 400 }
+      );
+    }
+
+    // Generate enhanced analysis
+    const enhancedAnalysis = await geminiClient.generateNewsStoryAnalysis(title, source, tags || []);
 
     // Generate suggested tags if not provided
     const suggestedTags = tags?.length > 0
       ? tags
-      : await geminiClient.categorizeSound(title, description);
+      : await geminiClient.categorizeNewsStory(title, source, summary);
 
-    // Calculate weirdness score
-    const weirdnessScore = await geminiClient.calculateWeirdnessScore(
+    // Calculate funny score
+    const funnyScore = await geminiClient.calculateFunnyScore(
       title,
-      enhancedDescription || description,
+      source,
+      enhancedAnalysis || summary,
       suggestedTags
     );
 
@@ -31,17 +39,18 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         originalTitle: title,
-        enhancedDescription: enhancedDescription || description,
+        source,
+        enhancedAnalysis: enhancedAnalysis || summary,
         suggestedTags,
-        weirdnessScore,
-        aiGenerated: !!enhancedDescription
+        funnyScore,
+        aiGenerated: !!enhancedAnalysis
       }
     });
 
   } catch (error) {
     console.error('AI enhancement error:', error);
     return NextResponse.json(
-      { error: 'Failed to enhance sound data' },
+      { error: 'Failed to enhance news story data' },
       { status: 500 }
     );
   }
@@ -55,9 +64,9 @@ export async function GET() {
     data: {
       available: isAvailable,
       features: [
-        'Sound description generation',
+        'News story analysis generation',
         'Tag suggestion',
-        'Weirdness score calculation'
+        'Funny score calculation'
       ]
     }
   });

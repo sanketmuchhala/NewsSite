@@ -1,62 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WeirdSoundsScraper, ScraperConfig } from '@/lib/scrapers';
-import { createScrapingJob, updateScrapingJob } from '@/lib/db';
+import { NewsStoryScraper } from '@/lib/scrapers';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { source, manual, maxSounds = 20 } = body;
+    const { source, maxPerSource = 15 } = body;
 
-    // Create scraping job record
-    const jobResult = await createScrapingJob(
-      source || 'all',
-      manual ? 'Manual scrape' : 'Automated scrape'
-    );
-
-    if (!jobResult.success || !jobResult.data) {
-      return NextResponse.json(
-        { error: 'Failed to create scraping job' },
-        { status: 500 }
-      );
-    }
-
-    const job = jobResult.data;
-
-    // Update job status to running
-    await updateScrapingJob(job.id, {
-      status: 'running',
-      started_at: new Date().toISOString()
-    });
+    console.log('Starting news scraping job...', { source, maxPerSource });
 
     // Initialize scraper configuration
-    const config: ScraperConfig = {
-      youtube: {
-        apiKey: process.env.YOUTUBE_API_KEY || '',
-        enabled: !!process.env.YOUTUBE_API_KEY && (!source || source === 'youtube' || source === 'all'),
+    const config = {
+      reddit: {
+        clientId: process.env.REDDIT_CLIENT_ID,
+        clientSecret: process.env.REDDIT_CLIENT_SECRET,
       },
-      freesound: {
-        apiKey: process.env.FREESOUND_API_KEY || '',
-        enabled: !!process.env.FREESOUND_API_KEY && (!source || source === 'freesound' || source === 'all'),
+      twitter: {
+        apiKey: process.env.TWITTER_API_KEY,
+        apiSecret: process.env.TWITTER_API_SECRET,
       },
-      archive: {
-        enabled: !source || source === 'archive' || source === 'all',
+      rss: {
+        feeds: undefined, // Will use default feeds
       },
     };
 
-    const scraper = new WeirdSoundsScraper(config);
+    const scraper = new NewsStoryScraper(config);
 
-    // Start scraping (don't await - run in background)
-    performScraping(scraper, job.id, maxSounds).catch(console.error);
+    // Check if Gemini API key is available
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn('⚠️ Gemini API key not found. AI enhancement will be limited.');
+    }
+
+    let results;
+    
+    if (source && source !== 'all') {
+      // Scrape specific source
+      switch (source) {
+        case 'reddit':
+          console.log('Scraping Reddit...');
+          const redditStories = await scraper.scrapeReddit(maxPerSource);
+          results = { reddit: redditStories.length, total: redditStories.length };
+          break;
+        case 'rss':
+          console.log('Scraping RSS feeds...');
+          const rssStories = await scraper.scrapeRSS(maxPerSource);
+          results = { rss: rssStories.length, total: rssStories.length };
+          break;
+        case 'twitter':
+          console.log('Scraping Twitter...');
+          const twitterStories = await scraper.scrapeTwitter(maxPerSource);
+          results = { twitter: twitterStories.length, total: twitterStories.length };
+          break;
+        default:
+          return NextResponse.json(
+            { error: 'Invalid source. Use: reddit, rss, twitter, or all' },
+            { status: 400 }
+          );
+      }
+    } else {
+      // Scrape all sources
+      console.log('Scraping all sources...');
+      results = await scraper.scrapeAll(maxPerSource);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Scraping job started',
-      jobId: job.id,
+      message: 'News scraping completed successfully',
+      results: results,
+      aiEnhanced: !!process.env.GEMINI_API_KEY,
     });
   } catch (error) {
-    console.error('Scraping API error:', error);
+    console.error('News scraping API error:', error);
     return NextResponse.json(
-      { error: 'Failed to start scraping job' },
+      { 
+        error: 'Failed to scrape news stories', 
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
@@ -66,106 +84,61 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const source = searchParams.get('source');
-    const id = searchParams.get('id');
 
-    // Manual scraping endpoints
-    if (source && id) {
-      const config: ScraperConfig = {
-        youtube: {
-          apiKey: process.env.YOUTUBE_API_KEY || '',
-          enabled: !!process.env.YOUTUBE_API_KEY,
-        },
-        freesound: {
-          apiKey: process.env.FREESOUND_API_KEY || '',
-          enabled: !!process.env.FREESOUND_API_KEY,
-        },
-        archive: {
+    // Return scraper status and available sources
+    const status = {
+      success: true,
+      message: 'News scraper API ready',
+      availableSources: {
+        reddit: {
           enabled: true,
+          description: 'Funny news from various subreddits',
+          subreddits: ['nottheonion', 'NewsOfTheStupid', 'FloridaMan', 'offbeat', 'WTF'],
+          requiresAuth: !!process.env.REDDIT_CLIENT_ID,
         },
-      };
+        rss: {
+          enabled: true,
+          description: 'Satirical and weird news from RSS feeds',
+          feeds: ['The Onion', 'Babylon Bee', 'ClickHole', 'UPI Odd News'],
+          requiresAuth: false,
+        },
+        twitter: {
+          enabled: !!process.env.TWITTER_API_KEY,
+          description: 'Funny news from Twitter',
+          requiresAuth: true,
+        },
+      },
+      aiEnhancement: {
+        enabled: !!process.env.GEMINI_API_KEY,
+        description: 'Google Gemini AI for content scoring and categorization',
+      },
+      database: {
+        connected: !!process.env.POSTGRES_URL,
+      },
+    };
 
-      const scraper = new WeirdSoundsScraper(config);
-      let result;
-
-      switch (source) {
-        case 'youtube':
-          result = await scraper.scrapeYouTubeVideo(id);
-          break;
-        case 'freesound':
-          result = await scraper.scrapeFreesoundById(parseInt(id));
-          break;
-        case 'archive':
-          result = await scraper.scrapeArchiveItem(id);
-          break;
-        default:
-          return NextResponse.json(
-            { error: 'Invalid source' },
-            { status: 400 }
-          );
-      }
-
-      if (result.success) {
-        return NextResponse.json({
-          success: true,
-          message: `Successfully scraped ${source} item: ${id}`,
-        });
-      } else {
+    if (source) {
+      // Return specific source info
+      const sourceInfo = status.availableSources[source as keyof typeof status.availableSources];
+      if (!sourceInfo) {
         return NextResponse.json(
-          { error: result.error },
-          { status: 500 }
+          { error: 'Invalid source' },
+          { status: 400 }
         );
       }
+      return NextResponse.json({
+        success: true,
+        source: source,
+        ...sourceInfo,
+      });
     }
 
-    // If no specific scraping requested, return scraper status
-    return NextResponse.json({
-      success: true,
-      message: 'Scraper API ready',
-      availableScrapers: {
-        youtube: !!process.env.YOUTUBE_API_KEY,
-        freesound: !!process.env.FREESOUND_API_KEY,
-        archive: true,
-      },
-    });
+    return NextResponse.json(status);
   } catch (error) {
-    console.error('Scraping GET API error:', error);
+    console.error('News scraper GET API error:', error);
     return NextResponse.json(
-      { error: 'Failed to process request' },
+      { error: 'Failed to get scraper status' },
       { status: 500 }
     );
-  }
-}
-
-async function performScraping(scraper: WeirdSoundsScraper, jobId: string, maxSounds: number) {
-  try {
-    console.log(`🚀 Starting scraping job ${jobId}`);
-
-    // Perform the scraping
-    const scrapingResult = await scraper.scrapeAll(maxSounds);
-
-    // Generate relationships between sounds
-    const relationshipResult = await scraper.generateSoundRelationships();
-
-    // Update job with results
-    await updateScrapingJob(jobId, {
-      status: scrapingResult.success ? 'completed' : 'failed',
-      results_count: scrapingResult.totalScraped,
-      error_message: scrapingResult.errors.length > 0 ? scrapingResult.errors.join('; ') : undefined,
-      completed_at: new Date().toISOString(),
-    });
-
-    console.log(`✅ Scraping job ${jobId} completed:`, {
-      scraped: scrapingResult.totalScraped,
-      relationships: relationshipResult.created,
-      errors: scrapingResult.errors.length + relationshipResult.errors.length,
-    });
-  } catch (error) {
-    console.error(`❌ Scraping job ${jobId} failed:`, error);
-
-    await updateScrapingJob(jobId, {
-      status: 'failed',
-      error_message: String(error),
-      completed_at: new Date().toISOString(),
-    });
   }
 }
