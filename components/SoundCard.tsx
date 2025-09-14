@@ -8,6 +8,7 @@ import { useState } from 'react';
 interface SoundCardProps {
   sound: Sound;
   onPlay?: (sound: Sound) => void;
+  showAIEnhance?: boolean;
 }
 
 export default function SoundCard({ sound, onPlay }: SoundCardProps) {

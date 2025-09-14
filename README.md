@@ -13,6 +13,7 @@ A viral web application for discovering and sharing the weirdest sounds on the i
 
 ### Technical Features
 - **Automated Scraping**: Daily GitHub Actions workflow to discover new content
+- **AI Enhancement**: Google Gemini AI for sound descriptions, categorization, and weirdness scoring
 - **Edge Caching**: Optimized API responses with Vercel edge functions
 - **Real-time Visualization**: Dynamic network graphs showing sound relationships
 - **Responsive Design**: Mobile-first dark theme with custom animations
@@ -64,6 +65,9 @@ Visit the deployed application: [weird-sounds.vercel.app](https://weird-sounds.v
    # Optional (enables scrapers)
    YOUTUBE_API_KEY="your_youtube_api_key"
    FREESOUND_API_KEY="your_freesound_api_key"
+
+   # Optional (enables AI features)
+   GEMINI_API_KEY="your_gemini_api_key"
 
    # Application
    NEXT_PUBLIC_APP_URL="http://localhost:3000"

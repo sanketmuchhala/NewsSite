@@ -3,6 +3,7 @@ import { FreesoundScraper } from './freesound';
 import { ArchiveScraper } from './archive';
 import { Sound } from '@/types';
 import { createSound, createSoundRelationship } from '@/lib/db';
+import { geminiClient } from '@/lib/ai/gemini';
 
 export interface ScraperConfig {
   youtube: {
@@ -118,10 +119,13 @@ export class WeirdSoundsScraper {
 
           for (const soundData of sounds) {
             try {
-              const dbResult = await createSound(soundData);
+              // Enhance with AI if available
+              const enhancedData = await this.enhanceWithAI(soundData);
+
+              const dbResult = await createSound(enhancedData);
               if (dbResult.success) {
                 result.scraped++;
-                console.log(`    ✅ Added: ${soundData.title}`);
+                console.log(`    ✅ Added: ${enhancedData.title} ${enhancedData.description !== soundData.description ? '(AI enhanced)' : ''}`);
               } else {
                 result.errors.push(`Failed to save YouTube sound: ${dbResult.error}`);
               }
@@ -164,10 +168,13 @@ export class WeirdSoundsScraper {
 
           for (const soundData of sounds) {
             try {
-              const dbResult = await createSound(soundData);
+              // Enhance with AI if available
+              const enhancedData = await this.enhanceWithAI(soundData);
+
+              const dbResult = await createSound(enhancedData);
               if (dbResult.success) {
                 result.scraped++;
-                console.log(`    ✅ Added: ${soundData.title}`);
+                console.log(`    ✅ Added: ${enhancedData.title} ${enhancedData.description !== soundData.description ? '(AI enhanced)' : ''}`);
               } else {
                 result.errors.push(`Failed to save Freesound sound: ${dbResult.error}`);
               }
@@ -210,10 +217,13 @@ export class WeirdSoundsScraper {
 
           for (const soundData of sounds) {
             try {
-              const dbResult = await createSound(soundData);
+              // Enhance with AI if available
+              const enhancedData = await this.enhanceWithAI(soundData);
+
+              const dbResult = await createSound(enhancedData);
               if (dbResult.success) {
                 result.scraped++;
-                console.log(`    ✅ Added: ${soundData.title}`);
+                console.log(`    ✅ Added: ${enhancedData.title} ${enhancedData.description !== soundData.description ? '(AI enhanced)' : ''}`);
               } else {
                 result.errors.push(`Failed to save Archive sound: ${dbResult.error}`);
               }
@@ -296,6 +306,47 @@ export class WeirdSoundsScraper {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async enhanceWithAI(sound: Omit<Sound, 'id' | 'created_at'>): Promise<Omit<Sound, 'id' | 'created_at'>> {
+    try {
+      // Only enhance if we have Gemini API key
+      if (!process.env.GEMINI_API_KEY) {
+        return sound;
+      }
+
+      console.log(`    🤖 AI enhancing: ${sound.title}`);
+
+      // Generate enhanced description if missing or short
+      let enhancedDescription = sound.description;
+      if (!sound.description || sound.description.length < 50) {
+        const aiDescription = await geminiClient.generateSoundDescription(sound.title, sound.tags);
+        if (aiDescription) {
+          enhancedDescription = aiDescription;
+        }
+      }
+
+      // Get AI-suggested tags and merge with existing
+      const aiTags = await geminiClient.categorizeSound(sound.title, enhancedDescription);
+      const mergedTags = Array.from(new Set([...sound.tags, ...aiTags])).slice(0, 12);
+
+      // Get AI-calculated weirdness score (use as fallback or average)
+      const aiWeirdness = await geminiClient.calculateWeirdnessScore(sound.title, enhancedDescription, mergedTags);
+      const finalWeirdness = sound.weirdness_score > 0
+        ? Math.round(((sound.weirdness_score + aiWeirdness) / 2) * 10) / 10
+        : aiWeirdness;
+
+      return {
+        ...sound,
+        description: enhancedDescription,
+        tags: mergedTags,
+        weirdness_score: finalWeirdness
+      };
+
+    } catch (error) {
+      console.error('AI enhancement failed:', error);
+      return sound; // Return original if AI fails
+    }
   }
 
   // Manual scraping methods for specific items
