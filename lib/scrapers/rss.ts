@@ -9,10 +9,16 @@ export class RssScraper {
   constructor(feeds?: string[]) {
     this.feeds = feeds || this.getDefaultFunnyNewsFeeds();
     this.parser = new Parser({
-      timeout: 10000,
+      timeout: 15000, // Increased timeout for serverless
       headers: {
         'User-Agent': 'FunnyNewsAggregator/1.0 (+https://funnynews.com/bot)',
+        'Accept': 'application/rss+xml, application/xml, text/xml',
+        'Cache-Control': 'no-cache'
       },
+      customFields: {
+        feed: ['language', 'copyright'],
+        item: ['media:thumbnail', 'media:content', 'content:encoded']
+      }
     });
   }
 
@@ -67,15 +73,39 @@ export class RssScraper {
   async parseAllFeeds(limitPerFeed: number = 5): Promise<NewsStory[]> {
     const allStories: NewsStory[] = [];
     
-    for (const feedUrl of this.feeds) {
-      try {
-        const stories = await this.parseFeed(feedUrl, limitPerFeed);
-        allStories.push(...stories);
-      } catch (error) {
-        console.error(`Failed to parse feed ${feedUrl}:`, error);
-        continue;
+    console.log(`Starting to parse ${this.feeds.length} RSS feeds...`);
+    
+    // Process feeds in smaller batches for better serverless performance
+    const batchSize = 3;
+    for (let i = 0; i < this.feeds.length; i += batchSize) {
+      const batch = this.feeds.slice(i, i + batchSize);
+      console.log(`Processing RSS batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(this.feeds.length / batchSize)}`);
+      
+      const batchPromises = batch.map(async (feedUrl) => {
+        try {
+          const stories = await this.parseFeed(feedUrl, limitPerFeed);
+          console.log(`Fetched ${stories.length} stories from ${this.extractDomainFromUrl(feedUrl)}`);
+          return stories;
+        } catch (error) {
+          console.error(`Failed to parse feed ${feedUrl}:`, error);
+          return [];
+        }
+      });
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      const batchStories = batchResults
+        .filter(result => result.status === 'fulfilled')
+        .flatMap(result => result.value);
+      
+      allStories.push(...batchStories);
+      
+      // Small delay between batches to be respectful to servers
+      if (i + batchSize < this.feeds.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
+    
+    console.log(`Total RSS stories collected: ${allStories.length}`);
     
     // Sort by publication date (newest first)
     return allStories.sort((a, b) => {

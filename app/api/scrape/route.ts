@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const scraper = new NewsStoryScraper(config);
 
     // Check if Gemini API key is available
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GOOGLE_AI_API_KEY) {
       console.warn('⚠️ Gemini API key not found. AI enhancement will be limited.');
     }
 

@@ -5,7 +5,10 @@
   "regions": ["iad1"],
   "functions": {
     "app/api/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
+    },
+    "app/api/scrape/**/*.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [

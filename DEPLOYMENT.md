@@ -185,6 +185,61 @@ Option B: Use the Web Interface
    - View individual story pages
    - Check responsive design on mobile
 
+3. **Test Admin Dashboard**
+   - Visit `/dashboard`
+   - Login with admin credentials (see environment variables section)
+   - Test scraper functionality
+   - Monitor system status
+
+### 4. Secure Admin Access
+
+The admin dashboard at `/dashboard` is protected by authentication:
+
+**🔐 Production Credentials (SECURE):**
+- Username: `newsadmin2024`
+- Password: `FunnyNews!Secure#2024$Admin`
+- Session Secret: `fN2024-d8Hj9KmP3qR7tZ5yC1xW6vE4uI9oL2sA8fG7hJ6kN5mQ3wE2rT1yU0pI9oK8lM`
+
+**⚠️ IMPORTANT SECURITY NOTES:**
+- Dashboard is NOT accessible via navigation menu for security
+- Access dashboard by manually typing: `https://your-app.vercel.app/dashboard`
+- Store these credentials securely (password manager recommended)
+- Consider rotating credentials every 90 days for maximum security
+- Session expires after 24 hours for security
+
+**Production Setup:**
+1. Set secure credentials in Vercel environment variables:
+   ```
+   ADMIN_USERNAME=newsadmin2024
+   ADMIN_PASSWORD=FunnyNews!Secure#2024$Admin
+   SESSION_SECRET=fN2024-d8Hj9KmP3qR7tZ5yC1xW6vE4uI9oL2sA8fG7hJ6kN5mQ3wE2rT1yU0pI9oK8lM
+   GOOGLE_AI_API_KEY=your-google-ai-api-key
+   ```
+
+2. **Admin Features:**
+   - Real-time system monitoring
+   - Manual scraper execution with detailed progress tracking
+   - Story management and analytics
+   - Source configuration and health monitoring
+   - System status indicators with error reporting
+
+3. **Scraper Configuration:**
+   The scraper has been optimized for Vercel deployment:
+   - Increased timeout limits (5 minutes for scraper operations)
+   - Batch processing to prevent serverless timeouts
+   - Enhanced error handling and recovery
+   - Automatic retry mechanisms for failed operations
+   - Better resource management for RSS feeds
+
+4. **Health Monitoring:**
+   Visit `/api/health` to check system configuration and status
+
+**Security Features:**
+- Session-based authentication with secure cookie handling
+- Auto-logout after 24 hours
+- Protected API routes with authentication middleware
+- Comprehensive error logging without exposing sensitive data
+
 ## 🎨 Custom Domain (Optional)
 
 ### 1. Configure Domain in Vercel
@@ -236,6 +291,37 @@ npm install
 npm run build  # Test locally first
 npm run typecheck  # Fix TypeScript errors
 ```
+
+**Scraping Issues**
+1. **Scraper Not Working in Dashboard:**
+   ```bash
+   # Check health endpoint
+   curl https://your-app.vercel.app/api/health
+   
+   # Verify environment variables
+   # - POSTGRES_URL must be set
+   # - GOOGLE_AI_API_KEY recommended for enhanced content
+   ```
+
+2. **Timeout Errors:**
+   - Scraper operations are limited to 5 minutes on Vercel
+   - Reduce maxPerSource parameter if timeouts occur
+   - Check Vercel function logs for detailed error information
+
+3. **Database Connection Issues:**
+   - Ensure Vercel Postgres database is properly connected
+   - Check POSTGRES_URL environment variable
+   - Verify database schema is initialized
+
+4. **Content Source Failures:**
+   - RSS feeds may be temporarily unavailable
+   - Reddit/Twitter APIs require proper credentials
+   - Check individual source logs in scraper output
+
+5. **Authentication Problems:**
+   - Verify admin credentials are set correctly
+   - Check session cookies are enabled in browser
+   - Ensure HTTPS is used in production
 
 **Scraping Issues**
 1. Check API key validity
