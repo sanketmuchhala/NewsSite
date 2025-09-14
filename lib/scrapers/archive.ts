@@ -300,7 +300,7 @@ export class ArchiveScraper {
     // Add general Archive.org tags
     tags.push('archive', 'historical', 'public-domain');
 
-    return [...new Set(tags)].slice(0, 12); // Remove duplicates and limit
+    return Array.from(new Set(tags)).slice(0, 12); // Remove duplicates and limit
   }
 
   private cleanDescription(description?: string): string | undefined {

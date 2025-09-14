@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
-    const sourceType = searchParams.get('source');
-    const search = searchParams.get('search');
+    const sourceType = searchParams.get('source') || undefined;
+    const search = searchParams.get('search') || undefined;
 
     const result = await getSounds(page, limit, tags, sourceType, search);
 

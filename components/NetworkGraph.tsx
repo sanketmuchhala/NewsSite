@@ -59,19 +59,27 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
   const initializeNetwork = () => {
     if (!containerRef.current || !graphData) return;
 
-    const nodes = new DataSet(graphData.nodes);
-    const edges = new DataSet(graphData.edges);
+    const nodes = new DataSet(graphData.nodes.map(node => ({
+      id: node.id,
+      label: node.label,
+      title: node.title,
+      color: node.color,
+      size: node.size,
+      sound: node.sound
+    })));
+    const edges = new DataSet(graphData.edges.map(edge => ({
+      id: `${edge.from}-${edge.to}`,
+      from: edge.from,
+      to: edge.to,
+      label: edge.label,
+      color: edge.color,
+      width: edge.width
+    })));
 
-    const options = {
+    const options: any = {
       nodes: {
         borderWidth: 2,
         borderWidthSelected: 4,
-        chosen: {
-          node: (values: any, id: string, selected: boolean, hovering: boolean) => {
-            values.borderColor = hovering ? '#EC4899' : '#8B5CF6';
-            values.color = hovering ? values.color + '40' : values.color;
-          }
-        },
         font: {
           color: '#ffffff',
           size: 12,

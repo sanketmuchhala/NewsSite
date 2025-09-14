@@ -3,9 +3,10 @@ import { Sound, SoundRelationship, ScrapingJob, PaginatedResponse } from '@/type
 
 export async function initializeDatabase() {
   try {
-    const schema = await import('./schema.sql');
-    await sql`${schema}`;
-    console.log('Database initialized successfully');
+    // Database schema - run this manually or via external script
+    // See lib/db/schema.sql for the complete schema
+    console.log('Database should be initialized with schema.sql file');
+    return { success: true };
   } catch (error) {
     console.error('Failed to initialize database:', error);
     throw error;
@@ -20,51 +21,60 @@ export async function getSounds(
   sourceType?: string,
   search?: string
 ): Promise<PaginatedResponse<Sound>> {
+  // Return empty results during build time
+  if (process.env.NODE_ENV !== 'production' && !process.env.POSTGRES_URL) {
+    return {
+      success: true,
+      data: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        hasMore: false
+      }
+    };
+  }
+
   try {
     const offset = (page - 1) * limit;
 
-    let query = sql`
-      SELECT *,
-        (SELECT COUNT(*) FROM sounds WHERE 1=1
-    `;
-
-    let whereConditions = [];
+    // Build WHERE conditions
+    const conditions: string[] = ['1=1'];
+    const values: any[] = [];
 
     if (tags && tags.length > 0) {
-      whereConditions.push(sql`tags && ${tags}`);
+      conditions.push(`tags && $${values.length + 1}`);
+      values.push(tags);
     }
 
     if (sourceType) {
-      whereConditions.push(sql`source_type = ${sourceType}`);
+      conditions.push(`source_type = $${values.length + 1}`);
+      values.push(sourceType);
     }
 
     if (search) {
-      whereConditions.push(sql`(title ILIKE ${`%${search}%`} OR description ILIKE ${`%${search}%`})`);
+      conditions.push(`(title ILIKE $${values.length + 1} OR description ILIKE $${values.length + 2})`);
+      values.push(`%${search}%`, `%${search}%`);
     }
 
-    if (whereConditions.length > 0) {
-      query = sql`${query} AND ${sql.join(whereConditions, sql` AND `)}`;
-    }
+    const whereClause = conditions.join(' AND ');
 
-    query = sql`${query}
-      ) as total_count
+    // Get sounds with count
+    const query = `
+      SELECT *,
+        (SELECT COUNT(*) FROM sounds WHERE ${whereClause}) as total_count
       FROM sounds
-      WHERE 1=1
-    `;
-
-    if (whereConditions.length > 0) {
-      query = sql`${query} AND ${sql.join(whereConditions, sql` AND `)}`;
-    }
-
-    query = sql`${query}
+      WHERE ${whereClause}
       ORDER BY weirdness_score DESC, created_at DESC
-      LIMIT ${limit}
-      OFFSET ${offset}
+      LIMIT $${values.length + 1}
+      OFFSET $${values.length + 2}
     `;
 
-    const result = await query;
+    values.push(limit, offset);
+
+    const result = await sql.query(query, values);
     const sounds = result.rows as (Sound & { total_count: number })[];
-    const totalCount = sounds.length > 0 ? sounds[0].total_count : 0;
+    const totalCount = sounds.length > 0 ? parseInt(sounds[0].total_count.toString()) : 0;
 
     return {
       success: true,
@@ -87,9 +97,7 @@ export async function getSounds(
 
 export async function getSoundById(id: string): Promise<{ success: boolean; data?: Sound; error?: string }> {
   try {
-    const result = await sql`
-      SELECT * FROM sounds WHERE id = ${id}
-    `;
+    const result = await sql.query('SELECT * FROM sounds WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
       return {
@@ -112,13 +120,21 @@ export async function getSoundById(id: string): Promise<{ success: boolean; data
 }
 
 export async function getRandomSound(): Promise<{ success: boolean; data?: Sound; error?: string }> {
+  // Return error during build time
+  if (process.env.NODE_ENV !== 'production' && !process.env.POSTGRES_URL) {
+    return {
+      success: false,
+      error: 'Database not available during build'
+    };
+  }
+
   try {
-    const result = await sql`
+    const result = await sql.query(`
       SELECT * FROM sounds
       WHERE weirdness_score >= 7.0
       ORDER BY RANDOM()
       LIMIT 1
-    `;
+    `);
 
     if (result.rows.length === 0) {
       return {
@@ -142,11 +158,21 @@ export async function getRandomSound(): Promise<{ success: boolean; data?: Sound
 
 export async function createSound(sound: Omit<Sound, 'id' | 'created_at'>): Promise<{ success: boolean; data?: Sound; error?: string }> {
   try {
-    const result = await sql`
+    const result = await sql.query(`
       INSERT INTO sounds (title, source_url, source_type, duration, tags, description, thumbnail_url, metadata, weirdness_score)
-      VALUES (${sound.title}, ${sound.source_url}, ${sound.source_type}, ${sound.duration || null}, ${sound.tags}, ${sound.description || null}, ${sound.thumbnail_url || null}, ${JSON.stringify(sound.metadata)}, ${sound.weirdness_score})
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `;
+    `, [
+      sound.title,
+      sound.source_url,
+      sound.source_type,
+      sound.duration || null,
+      sound.tags,
+      sound.description || null,
+      sound.thumbnail_url || null,
+      JSON.stringify(sound.metadata),
+      sound.weirdness_score
+    ]);
 
     return {
       success: true,
@@ -163,9 +189,20 @@ export async function createSound(sound: Omit<Sound, 'id' | 'created_at'>): Prom
 
 // Graph operations
 export async function getGraphData(): Promise<{ success: boolean; data?: { sounds: Sound[]; relationships: SoundRelationship[] }; error?: string }> {
+  // Return empty results during build time
+  if (process.env.NODE_ENV !== 'production' && !process.env.POSTGRES_URL) {
+    return {
+      success: true,
+      data: {
+        sounds: [],
+        relationships: []
+      }
+    };
+  }
+
   try {
     const [soundsResult, relationshipsResult] = await Promise.all([
-      sql`
+      sql.query(`
         SELECT * FROM sounds
         WHERE id IN (
           SELECT DISTINCT sound_id_1 FROM sound_relationships
@@ -174,13 +211,13 @@ export async function getGraphData(): Promise<{ success: boolean; data?: { sound
         )
         ORDER BY weirdness_score DESC
         LIMIT 100
-      `,
-      sql`
+      `),
+      sql.query(`
         SELECT * FROM sound_relationships
         WHERE strength >= 3.0
         ORDER BY strength DESC
         LIMIT 200
-      `
+      `)
     ]);
 
     return {
@@ -206,13 +243,13 @@ export async function createSoundRelationship(
   strength: number
 ): Promise<{ success: boolean; data?: SoundRelationship; error?: string }> {
   try {
-    const result = await sql`
+    const result = await sql.query(`
       INSERT INTO sound_relationships (sound_id_1, sound_id_2, relationship_type, strength)
-      VALUES (${soundId1}, ${soundId2}, ${relationshipType}, ${strength})
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT (sound_id_1, sound_id_2, relationship_type)
       DO UPDATE SET strength = EXCLUDED.strength
       RETURNING *
-    `;
+    `, [soundId1, soundId2, relationshipType, strength]);
 
     return {
       success: true,
@@ -233,11 +270,11 @@ export async function createScrapingJob(
   query: string
 ): Promise<{ success: boolean; data?: ScrapingJob; error?: string }> {
   try {
-    const result = await sql`
+    const result = await sql.query(`
       INSERT INTO scraping_jobs (source, query)
-      VALUES (${source}, ${query})
+      VALUES ($1, $2)
       RETURNING *
-    `;
+    `, [source, query]);
 
     return {
       success: true,
@@ -257,10 +294,6 @@ export async function updateScrapingJob(
   updates: Partial<Pick<ScrapingJob, 'status' | 'results_count' | 'error_message' | 'started_at' | 'completed_at'>>
 ): Promise<{ success: boolean; data?: ScrapingJob; error?: string }> {
   try {
-    const setClause = Object.entries(updates)
-      .map(([key, value]) => `${key} = ${value === null ? 'NULL' : `'${value}'`}`)
-      .join(', ');
-
     if (updates.status === 'running' && !updates.started_at) {
       updates.started_at = new Date().toISOString();
     }
@@ -269,12 +302,17 @@ export async function updateScrapingJob(
       updates.completed_at = new Date().toISOString();
     }
 
-    const result = await sql`
+    const fields = Object.keys(updates);
+    const values = Object.values(updates);
+
+    const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+
+    const result = await sql.query(`
       UPDATE scraping_jobs
-      SET ${sql.raw(setClause)}
-      WHERE id = ${id}
+      SET ${setClause}
+      WHERE id = $1
       RETURNING *
-    `;
+    `, [id, ...values]);
 
     return {
       success: true,
