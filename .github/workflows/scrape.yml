@@ -1,0 +1,152 @@
+name: 🔊 Automated Weird Sounds Scraping
+
+on:
+  # Run daily at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Source to scrape (all, youtube, freesound, archive)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - youtube
+          - freesound
+          - archive
+      max_sounds:
+        description: 'Maximum sounds to scrape'
+        required: false
+        default: '30'
+        type: string
+
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  scrape:
+    name: 🎵 Scrape Weird Sounds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📊 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Run scraping
+        env:
+          # Database connection
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+
+          # API keys for scrapers
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+
+          # Application config
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+        run: |
+          echo "🚀 Starting weird sounds scraping..."
+
+          # Determine scraping parameters
+          SOURCE="${{ github.event.inputs.source || 'all' }}"
+          MAX_SOUNDS="${{ github.event.inputs.max_sounds || '30' }}"
+
+          echo "📡 Scraping source: $SOURCE"
+          echo "🔢 Max sounds: $MAX_SOUNDS"
+
+          # Call the scraping API endpoint
+          curl -X POST "${{ secrets.NEXT_PUBLIC_APP_URL }}/api/scrape" \
+            -H "Content-Type: application/json" \
+            -d "{\"source\":\"$SOURCE\",\"maxSounds\":$MAX_SOUNDS,\"manual\":false}" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            -s -S
+
+          echo "✅ Scraping job initiated"
+
+      - name: 📋 Create scraping summary
+        if: always()
+        run: |
+          echo "## 🔊 Weird Sounds Scraping Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source:** ${{ github.event.inputs.source || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Sounds:** ${{ github.event.inputs.max_sounds || '30' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered:** ${{ github.event_name == 'schedule' && 'Automatically (daily)' || 'Manually' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ **Status:** Scraping job initiated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The scraping process is now running in the background. Check the application logs for detailed results." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Failed to initiate scraping job" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the workflow logs for error details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify:
+    name: 📢 Notify Results
+    needs: scrape
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Post to webhook (if configured)
+        if: vars.WEBHOOK_URL
+        run: |
+          STATUS="${{ needs.scrape.result }}"
+          SOURCE="${{ github.event.inputs.source || 'all' }}"
+          MAX_SOUNDS="${{ github.event.inputs.max_sounds || '30' }}"
+
+          if [ "$STATUS" == "success" ]; then
+            MESSAGE="🎵 Weird sounds scraping initiated successfully! Source: $SOURCE, Max: $MAX_SOUNDS"
+            COLOR="3066993"  # Green
+          else
+            MESSAGE="❌ Weird sounds scraping failed. Source: $SOURCE, Max: $MAX_SOUNDS"
+            COLOR="15158332"  # Red
+          fi
+
+          curl -X POST "${{ vars.WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"Weird Sounds Scraper\",\"description\":\"$MESSAGE\",\"color\":$COLOR,\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"}]}"
+
+  health-check:
+    name: 🏥 Health Check
+    needs: scrape
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 🔍 Check application health
+        run: |
+          echo "🏥 Performing health check..."
+
+          # Check if the application is responding
+          HEALTH_URL="${{ secrets.NEXT_PUBLIC_APP_URL }}/api/sounds?limit=1"
+
+          if curl -s -f "$HEALTH_URL" > /dev/null; then
+            echo "✅ Application is healthy"
+            echo "## 🏥 Health Check" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Status:** Application is responding normally" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Application health check failed"
+            echo "## 🏥 Health Check" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Status:** Application may be experiencing issues" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

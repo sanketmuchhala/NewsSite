@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://weird-sounds.vercel.app/sitemap.xml
+
+# Special paths for weird internet crawlers 👻
+Allow: /graph
+Allow: /api/sounds
+Allow: /api/graph
+
+# Block scraping API (we do our own scraping)
+Disallow: /api/scrape
