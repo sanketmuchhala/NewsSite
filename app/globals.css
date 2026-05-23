@@ -135,11 +135,22 @@ html {
   border: 1px solid hsl(var(--border));
 }
 
-/* Clean typography */
+/* Display typography */
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
+  font-family: var(--font-syne), system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+/* Counter animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stat-count {
+  animation: countUp 0.6s ease-out forwards;
 }
 
 /* Professional spacing utilities */

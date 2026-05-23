@@ -1,17 +1,29 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Outfit, Syne } from 'next/font/google';
 import './globals.css';
+import Header from '@/components/Header';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-const inter = Inter({ subsets: ['latin'] });
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+});
+
+const syne = Syne({
+  subsets: ['latin'],
+  variable: '--font-syne',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
     default: 'FunnyNews',
-    template: '%s | FunnyNews'
+    template: '%s | FunnyNews',
   },
-  description: 'Discover the most hilarious and absurd news stories from around the web. A modern news aggregation platform focusing on humor and viral content.',
+  description:
+    'Discover the most hilarious and absurd news stories from around the web. A modern news aggregation platform focusing on humor and viral content.',
   keywords: ['funny news', 'viral news', 'humor', 'comedy', 'absurd news', 'entertainment', 'news aggregator'],
   authors: [{ name: 'FunnyNews Team' }],
   openGraph: {
@@ -27,161 +39,78 @@ export const metadata: Metadata = {
     description: 'Your daily dose of the funniest and most absurd news from around the world.',
     creator: '@funnynews',
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: { index: true, follow: true },
   metadataBase: new URL('https://funnynews.com'),
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('theme');if(t!=='light')document.documentElement.classList.add('dark');})();`,
+          }}
+        />
+      </head>
+      <body className={`${outfit.variable} ${syne.variable} font-sans`}>
         <div className="min-h-screen flex flex-col bg-background">
-          {/* Header */}
-          <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container-responsive">
-              <div className="flex h-16 items-center justify-between">
-                {/* Logo and Brand */}
-                <Link href="/" className="flex items-center space-x-2 group">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-lg transition-transform group-hover:scale-110">
-                    F
-                  </div>
-                  <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                    FunnyNews
-                  </span>
-                </Link>
+          <Header />
 
-                {/* Navigation */}
-                <nav className="hidden md:flex items-center space-x-6">
-                  <Link
-                    href="/"
-                    className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
-                  >
-                    Home
-                  </Link>
-                  <Link
-                    href="/trending"
-                    className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
-                  >
-                    Trending
-                  </Link>
-                  <Link
-                    href="/graph"
-                    className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
-                  >
-                    Network
-                  </Link>
-                  <Link
-                    href="/sources"
-                    className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
-                  >
-                    Sources
-                  </Link>
-                </nav>
+          <main className="flex-1">{children}</main>
 
-                {/* Actions */}
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm">
-                    Submit Story
-                  </Button>
-                  <Button variant="default" size="sm">
-                    Get Started
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Content */}
-          <main className="flex-1">
-            {children}
-          </main>
-
-          {/* Footer */}
           <footer className="border-t border-border bg-muted/50">
             <div className="container-responsive py-8">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                {/* Brand */}
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <div className="flex items-center justify-center w-6 h-6 rounded bg-primary text-primary-foreground font-bold text-sm">
                       F
                     </div>
-                    <span className="font-bold text-foreground">FunnyNews</span>
+                    <span className="font-bold text-foreground font-display">FunnyNews</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Your daily dose of humor from the world's most absurd news stories.
+                    Your daily dose of humor from the world&apos;s most absurd news stories.
                   </p>
                 </div>
 
-                {/* Quick Links */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Explore</h4>
                   <div className="space-y-2 text-sm">
-                    <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      Latest Stories
-                    </Link>
-                    <Link href="/trending" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      Trending Now
-                    </Link>
-                    <Link href="/graph" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      Story Network
-                    </Link>
-                    <Link href="/sources" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      News Sources
-                    </Link>
+                    <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors block">Latest Stories</Link>
+                    <Link href="/trending" className="text-muted-foreground hover:text-foreground transition-colors block">Trending Now</Link>
+                    <Link href="/graph" className="text-muted-foreground hover:text-foreground transition-colors block">Story Network</Link>
+                    <Link href="/sources" className="text-muted-foreground hover:text-foreground transition-colors block">News Sources</Link>
                   </div>
                 </div>
 
-                {/* Resources */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Resources</h4>
                   <div className="space-y-2 text-sm">
-                    <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      About Us
-                    </Link>
-                    <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      Contact
-                    </Link>
-                    <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      Privacy Policy
-                    </Link>
-                    <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors block">
-                      Terms of Service
-                    </Link>
+                    <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors block">About Us</Link>
+                    <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors block">Contact</Link>
+                    <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors block">Privacy Policy</Link>
+                    <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors block">Terms of Service</Link>
                   </div>
                 </div>
 
-                {/* Newsletter */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Stay Updated</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Get the funniest stories delivered to your inbox.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Get the funniest stories delivered to your inbox.</p>
                   <div className="flex space-x-2">
                     <input
                       type="email"
                       placeholder="Enter your email"
                       className="flex-1 px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
-                    <Button size="sm">
-                      Subscribe
-                    </Button>
+                    <Button size="sm">Subscribe</Button>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom */}
               <div className="mt-8 pt-6 border-t border-border flex flex-col md:flex-row justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                  © 2024 FunnyNews. All rights reserved.
-                </p>
+                <p className="text-sm text-muted-foreground">© 2024 FunnyNews. All rights reserved.</p>
                 <div className="flex space-x-4 mt-4 md:mt-0">
                   <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                     <span className="sr-only">Twitter</span>
@@ -192,7 +121,7 @@ export default function RootLayout({
                   <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                     <span className="sr-only">Reddit</span>
                     <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.249-1.249 0-.687-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/>
+                      <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.249-1.249 0-.687-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" />
                     </svg>
                   </a>
                 </div>

@@ -2,8 +2,118 @@
 
 import { useState, useEffect } from 'react';
 import { NewsStory } from '@/types';
-import StoryCard from '@/components/StoryCard';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ArrowUp, ExternalLink, TrendingUp, Flame, Clock } from 'lucide-react';
 import { StoryCardSkeleton } from '@/components/Skeletons';
+import { formatDistanceToNow } from 'date-fns';
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+const MEDAL_COLORS = [
+  'border-amber-400/40 bg-amber-400/5',
+  'border-slate-400/40 bg-slate-400/5',
+  'border-orange-700/40 bg-orange-700/5',
+];
+
+function TrendingScore({ story }: { story: NewsStory }) {
+  const score = (story.upvotes || 0) + (story.funny_score || 0) * 0.1;
+  return (
+    <span className="text-xs font-mono text-muted-foreground tabular-nums">
+      {Math.round(score).toLocaleString()} pts
+    </span>
+  );
+}
+
+function TopCard({ story, rank }: { story: NewsStory; rank: number }) {
+  const publishedAgo = story.published_at
+    ? (() => { try { return formatDistanceToNow(new Date(story.published_at), { addSuffix: true }); } catch { return null; } })()
+    : null;
+
+  return (
+    <div className={`relative rounded-2xl border ${MEDAL_COLORS[rank]} p-6 flex flex-col gap-3 hover:shadow-lg transition-all duration-200 group`}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-3xl leading-none mt-0.5">{MEDALS[rank]}</span>
+        <div className="flex-1 min-w-0">
+          <Link href={`/story/${story.id}`}>
+            <h3 className="font-display font-bold text-foreground text-lg leading-snug group-hover:text-primary transition-colors line-clamp-2">
+              {story.title}
+            </h3>
+          </Link>
+        </div>
+      </div>
+
+      {story.summary && (
+        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+          {story.summary}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/30">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-xs font-semibold text-foreground">
+            <ArrowUp className="w-3 h-3 text-green-400" />
+            {(story.upvotes || 0).toLocaleString()}
+          </span>
+          {story.funny_score !== undefined && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+              😂 {story.funny_score}
+            </Badge>
+          )}
+          {publishedAgo && (
+            <span className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground/60">
+              <Clock className="w-2.5 h-2.5" />
+              {publishedAgo}
+            </span>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => window.open(story.url, '_blank', 'noopener,noreferrer')}
+        >
+          <ExternalLink className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function RankedRow({ story, rank }: { story: NewsStory; rank: number }) {
+  const publishedAgo = story.published_at
+    ? (() => { try { return formatDistanceToNow(new Date(story.published_at), { addSuffix: true }); } catch { return null; } })()
+    : null;
+
+  return (
+    <div className="group flex items-start gap-4 py-4 px-4 -mx-4 rounded-xl hover:bg-muted/40 transition-colors">
+      <span className="w-8 text-center font-display font-bold text-lg text-muted-foreground/50 shrink-0 mt-0.5 tabular-nums">
+        {rank}
+      </span>
+      <div className="flex-1 min-w-0">
+        <Link href={`/story/${story.id}`}>
+          <h3 className="font-display font-semibold text-foreground text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-1.5">
+            {story.title}
+          </h3>
+        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-medium text-muted-foreground">{story.source}</span>
+          <span className="flex items-center gap-1 text-xs text-green-400">
+            <ArrowUp className="w-3 h-3" />
+            {(story.upvotes || 0).toLocaleString()}
+          </span>
+          {story.funny_score !== undefined && (
+            <span className="text-xs text-muted-foreground/70">😂 {story.funny_score}</span>
+          )}
+          {publishedAgo && (
+            <span className="text-[10px] text-muted-foreground/50">{publishedAgo}</span>
+          )}
+        </div>
+      </div>
+      <TrendingScore story={story} />
+    </div>
+  );
+}
 
 export default function TrendingPage() {
   const [stories, setStories] = useState<NewsStory[]>([]);
@@ -11,44 +121,44 @@ export default function TrendingPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchTrendingStories() {
+    async function load() {
       try {
         const response = await fetch('/api/stories?sort=trending&pageSize=20');
         const result = await response.json();
-        
         if (result.success && result.data) {
-          // Sort by upvotes and funny_score for trending
-          const sortedStories = result.data
-            .sort((a: NewsStory, b: NewsStory) => {
-              const scoreA = (a.upvotes || 0) + (a.funny_score || 0) * 0.1;
-              const scoreB = (b.upvotes || 0) + (b.funny_score || 0) * 0.1;
-              return scoreB - scoreA;
-            })
-            .slice(0, 15); // Top 15 trending stories
-          
-          setStories(sortedStories);
+          const sorted: NewsStory[] = [...result.data].sort((a, b) => {
+            const sa = (a.upvotes || 0) + (a.funny_score || 0) * 0.1;
+            const sb = (b.upvotes || 0) + (b.funny_score || 0) * 0.1;
+            return sb - sa;
+          });
+          setStories(sorted.slice(0, 15));
         } else {
           setError(result.error || 'Failed to load trending stories');
         }
-      } catch (err) {
+      } catch {
         setError('Failed to connect to the server');
-        console.error('Fetch error:', err);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchTrendingStories();
+    load();
   }, []);
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-white mb-8">Trending News</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(9)].map((_, i) => (
-            <StoryCardSkeleton key={i} />
-          ))}
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="section-padding">
+          <div className="container-responsive">
+            <div className="h-20 bg-muted rounded-xl mb-8 animate-pulse max-w-lg" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+              {[...Array(3)].map((_, i) => <StoryCardSkeleton key={i} />)}
+            </div>
+            <div className="space-y-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -56,42 +166,86 @@ export default function TrendingPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-white mb-8">Trending News</h1>
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">😵</div>
-          <p className="text-xl text-gray-400 mb-4">Failed to load trending stories</p>
-          <p className="text-gray-500 mb-6">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Try Again
-          </button>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-4xl mb-4">😵</p>
+          <p className="font-display text-xl font-bold text-foreground mb-2">Failed to load</p>
+          <p className="text-sm text-muted-foreground mb-6">{error}</p>
+          <Button onClick={() => window.location.reload()} size="sm">Try Again</Button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold text-white mb-8">Trending News</h1>
+  const top3 = stories.slice(0, 3);
+  const rest = stories.slice(3);
 
-      {stories.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stories.map((story) => (
-            <StoryCard key={story.id} story={story} />
-          ))}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Hero */}
+      <section className="section-padding border-b border-border/50 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(hsl(var(--border)/0.3)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border)/0.3)_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none" />
+        <div className="container-responsive relative">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500/10 text-orange-400">
+              <Flame className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+                Trending Now
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5" />
+                Top {stories.length} stories ranked by votes & funny score
+              </p>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">📈</div>
-          <p className="text-xl text-gray-400 mb-4">No trending stories found</p>
-          <p className="text-gray-500 mb-6">
-            Check back later for the hottest funny news!
-          </p>
+      </section>
+
+      <section className="section-padding">
+        <div className="container-responsive">
+          {stories.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-4xl mb-4">📈</p>
+              <h3 className="font-display text-xl font-bold text-foreground mb-2">No trending stories yet</h3>
+              <p className="text-sm text-muted-foreground">Check back soon!</p>
+            </div>
+          ) : (
+            <>
+              {/* Top 3 podium */}
+              {top3.length > 0 && (
+                <div className="mb-10">
+                  <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
+                    Podium
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {top3.map((story, i) => (
+                      <TopCard key={story.id} story={story} rank={i} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ranked list */}
+              {rest.length > 0 && (
+                <div>
+                  <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                    Rankings
+                  </h2>
+                  <div className="rounded-xl border border-border/50 bg-card/50 divide-y divide-border/30 overflow-hidden">
+                    {rest.map((story, i) => (
+                      <div key={story.id} className="px-4">
+                        <RankedRow story={story} rank={i + 4} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </section>
     </div>
   );
 }
