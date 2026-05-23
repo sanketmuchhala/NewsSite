@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Network } from 'vis-network/standalone';
 import { DataSet } from 'vis-data';
 import { GraphData, GraphNode, GraphEdge, NewsStory } from '@/types';
+import { X, ExternalLink } from 'lucide-react';
 
 interface NetworkGraphProps {
   onNodeClick?: (story: NewsStory) => void;
@@ -12,23 +13,24 @@ interface NetworkGraphProps {
 
 export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const networkRef = useRef<Network | null>(null);
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const networkRef   = useRef<Network | null>(null);
+  const [graphData,    setGraphData]    = useState<GraphData | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [stats, setStats] = useState({
-    totalStories: 0,
-    connections: 0,
+  const [stats,        setStats]        = useState({
+    totalStories:  0,
+    connections:   0,
     funniestStory: null as GraphNode | null,
   });
+
+  // ─── Data fetching ──────────────────────────────────────────
 
   const loadGraphData = async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/graph');
-      const result = await response.json();
-
+      const result   = await response.json();
       if (result.success && result.data) {
         setGraphData(result.data);
         calculateStats(result.data);
@@ -48,424 +50,288 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
     const funniestStory = data.nodes.reduce((prev: GraphNode, current: GraphNode) =>
       (current.story.funny_score || 0) > (prev.story.funny_score || 0) ? current : prev
     );
-
-    setStats({
-      totalStories: data.nodes.length,
-      connections: data.edges.length,
-      funniestStory,
-    });
+    setStats({ totalStories: data.nodes.length, connections: data.edges.length, funniestStory });
   };
 
-  // Enhanced color functions for better visual design
+  // ─── vis-network color helpers (unchanged) ──────────────────
+
   const getNodeBackgroundColor = (sourceType: string, funnyScore: number): string => {
     const colors = {
-      reddit: { r: 255, g: 69, b: 0 },    // Reddit orange
-      rss: { r: 59, g: 130, b: 246 },    // Blue
-      twitter: { r: 29, g: 161, b: 242 }, // Twitter blue
-      api: { r: 147, g: 51, b: 234 }      // Purple
+      reddit:  { r: 255, g: 69,  b: 0   },
+      rss:     { r: 59,  g: 130, b: 246 },
+      twitter: { r: 29,  g: 161, b: 242 },
+      api:     { r: 147, g: 51,  b: 234 },
     };
-    
-    const color = colors[sourceType as keyof typeof colors] || colors.rss;
+    const color     = colors[sourceType as keyof typeof colors] || colors.rss;
     const intensity = Math.max(0.8, Math.min(1, funnyScore / 100));
-    
     return `rgba(${color.r}, ${color.g}, ${color.b}, ${intensity})`;
   };
 
   const getNodeBorderColor = (sourceType: string): string => {
-    const colors = {
-      reddit: '#ff6b35',
-      rss: '#60a5fa', 
-      twitter: '#38bdf8',
-      api: '#a855f7'
-    };
-    
+    const colors = { reddit: '#ff6b35', rss: '#60a5fa', twitter: '#38bdf8', api: '#a855f7' };
     return colors[sourceType as keyof typeof colors] || colors.rss;
   };
 
   const getNodeHighlightColor = (sourceType: string): string => {
-    const colors = {
-      reddit: '#ff8c42',
-      rss: '#93c5fd',
-      twitter: '#7dd3fc', 
-      api: '#c084fc'
-    };
-    
+    const colors = { reddit: '#ff8c42', rss: '#93c5fd', twitter: '#7dd3fc', api: '#c084fc' };
     return colors[sourceType as keyof typeof colors] || colors.rss;
   };
 
   const getEdgeColor = (relationshipType: string): string => {
     const colors = {
-      similar: '#10b981',     // Green
-      related: '#6b7280',     // Gray
-      follow_up: '#8b5cf6',   // Purple
-      contradicts: '#ef4444', // Red
-      updates: '#f59e0b'      // Amber
+      similar:     '#10b981',
+      related:     '#6b7280',
+      follow_up:   '#8b5cf6',
+      contradicts: '#ef4444',
+      updates:     '#f59e0b',
     };
-
     return colors[relationshipType as keyof typeof colors] || colors.related;
   };
 
   const getEdgeHighlightColor = (relationshipType: string): string => {
     const colors = {
-      similar: '#34d399',
-      related: '#9ca3af',
-      follow_up: '#a78bfa',
+      similar:     '#34d399',
+      related:     '#9ca3af',
+      follow_up:   '#a78bfa',
       contradicts: '#f87171',
-      updates: '#fbbf24'
+      updates:     '#fbbf24',
     };
-
     return colors[relationshipType as keyof typeof colors] || colors.related;
   };
+
+  // ─── Network init (unchanged) ───────────────────────────────
 
   const initializeNetwork = () => {
     if (!containerRef.current || !graphData) return;
 
     const nodes = new DataSet(graphData.nodes.map((node: GraphNode) => ({
-      id: node.id,
+      id:    node.id,
       label: node.label,
       title: node.title,
       color: {
         background: getNodeBackgroundColor(node.story.source_type || 'rss', node.story.funny_score || 50),
-        border: getNodeBorderColor(node.story.source_type || 'rss'),
-        highlight: {
-          background: getNodeHighlightColor(node.story.source_type || 'rss'),
-          border: '#ffffff'
-        },
-        hover: {
-          background: getNodeHighlightColor(node.story.source_type || 'rss'),
-          border: '#ffffff'
-        }
+        border:     getNodeBorderColor(node.story.source_type || 'rss'),
+        highlight:  { background: getNodeHighlightColor(node.story.source_type || 'rss'), border: '#ffffff' },
+        hover:      { background: getNodeHighlightColor(node.story.source_type || 'rss'), border: '#ffffff' },
       },
       size: Math.max(20, Math.min(50, (node.story.funny_score || 50) * 0.5)),
       font: {
-        color: '#ffffff',
-        size: 13,
-        face: 'Inter, system-ui, sans-serif',
+        color:       '#ffffff',
+        size:        13,
+        face:        'Inter, system-ui, sans-serif',
         strokeWidth: 2,
-        strokeColor: 'rgba(0, 0, 0, 0.8)'
+        strokeColor: 'rgba(0, 0, 0, 0.8)',
       },
       borderWidth: 2,
-      shadow: {
-        enabled: true,
-        color: 'rgba(0, 0, 0, 0.3)',
-        size: 8,
-        x: 2,
-        y: 2
-      },
-      story: node.story
+      shadow: { enabled: true, color: 'rgba(0, 0, 0, 0.3)', size: 8, x: 2, y: 2 },
+      story: node.story,
     })));
-    
+
     const edges = new DataSet(graphData.edges.map((edge: GraphEdge) => ({
-      id: `${edge.from}-${edge.to}`,
-      from: edge.from,
-      to: edge.to,
+      id:    `${edge.from}-${edge.to}`,
+      from:  edge.from,
+      to:    edge.to,
       label: edge.label,
       color: {
-        color: getEdgeColor(edge.relationship?.relationship_type || 'related'),
+        color:     getEdgeColor(edge.relationship?.relationship_type || 'related'),
         highlight: getEdgeHighlightColor(edge.relationship?.relationship_type || 'related'),
-        opacity: 0.7
+        opacity:   0.7,
       },
       width: Math.max(2, Math.min(6, (edge.relationship?.strength || 0.5) * 8)),
       font: {
-        color: '#e5e7eb',
-        size: 11,
-        face: 'Inter, system-ui, sans-serif',
+        color:       '#e5e7eb',
+        size:        11,
+        face:        'Inter, system-ui, sans-serif',
         strokeWidth: 3,
         strokeColor: '#1f2937',
-        background: 'rgba(31, 41, 55, 0.8)'
+        background:  'rgba(31, 41, 55, 0.8)',
       },
-      smooth: {
-        enabled: true,
-        type: 'curvedCW',
-        roundness: 0.2
-      }
+      smooth: { enabled: true, type: 'curvedCW', roundness: 0.2 },
     })));
 
     const options: any = {
       nodes: {
-        borderWidth: 3,
+        borderWidth:         3,
         borderWidthSelected: 4,
-        font: {
-          color: '#ffffff',
-          size: 13,
-          face: 'Inter, system-ui, sans-serif',
-          strokeWidth: 2,
-          strokeColor: 'rgba(0, 0, 0, 0.8)',
-        },
-        shadow: {
-          enabled: true,
-          color: 'rgba(0, 0, 0, 0.2)',
-          size: 10,
-          x: 2,
-          y: 2
-        },
-        scaling: {
-          min: 20,
-          max: 50,
-          label: {
-            enabled: true,
-            min: 12,
-            max: 16,
-          }
-        },
-        shape: 'dot'
+        font:   { color: '#ffffff', size: 13, face: 'Inter, system-ui, sans-serif', strokeWidth: 2, strokeColor: 'rgba(0, 0, 0, 0.8)' },
+        shadow: { enabled: true, color: 'rgba(0, 0, 0, 0.2)', size: 10, x: 2, y: 2 },
+        scaling: { min: 20, max: 50, label: { enabled: true, min: 12, max: 16 } },
+        shape: 'dot',
       },
       edges: {
-        arrows: {
-          to: { 
-            enabled: true, 
-            scaleFactor: 0.8,
-            type: 'arrow'
-          }
-        },
-        smooth: {
-          enabled: true,
-          type: 'curvedCW',
-          roundness: 0.15
-        },
-        shadow: {
-          enabled: true,
-          color: 'rgba(0, 0, 0, 0.1)',
-          size: 3,
-        },
-        font: {
-          color: '#e5e7eb',
-          size: 11,
-          face: 'Inter, system-ui, sans-serif',
-          strokeWidth: 3,
-          strokeColor: '#1f2937',
-          background: 'rgba(31, 41, 55, 0.8)'
-        },
+        arrows: { to: { enabled: true, scaleFactor: 0.8, type: 'arrow' } },
+        smooth: { enabled: true, type: 'curvedCW', roundness: 0.15 },
+        shadow: { enabled: true, color: 'rgba(0, 0, 0, 0.1)', size: 3 },
+        font:   { color: '#e5e7eb', size: 11, face: 'Inter, system-ui, sans-serif', strokeWidth: 3, strokeColor: '#1f2937', background: 'rgba(31, 41, 55, 0.8)' },
         labelHighlightBold: false,
       },
       physics: {
         enabled: true,
-        stabilization: { 
-          iterations: 200,
-          updateInterval: 25,
-          onlyDynamicEdges: false,
-          fit: true
-        },
+        stabilization: { iterations: 200, updateInterval: 25, onlyDynamicEdges: false, fit: true },
         barnesHut: {
           gravitationalConstant: -15000,
-          centralGravity: 0.4,
-          springLength: 150,
-          springConstant: 0.08,
-          damping: 0.15,
-          avoidOverlap: 0.3
+          centralGravity:  0.4,
+          springLength:    150,
+          springConstant:  0.08,
+          damping:         0.15,
+          avoidOverlap:    0.3,
         },
         maxVelocity: 30,
         minVelocity: 0.75,
-        timestep: 0.3,
-        adaptiveTimestep: true
+        timestep:    0.3,
+        adaptiveTimestep: true,
       },
       interaction: {
-        dragNodes: true,
-        dragView: true,
-        zoomView: true,
+        dragNodes:            true,
+        dragView:             true,
+        zoomView:             true,
         selectConnectedEdges: true,
-        hover: true,
-        hoverConnectedEdges: true,
-        tooltipDelay: 300,
-        zoomSpeed: 1.2
+        hover:                true,
+        hoverConnectedEdges:  true,
+        tooltipDelay:         300,
+        zoomSpeed:            1.2,
       },
-      layout: {
-        improvedLayout: true,
-        clusterThreshold: 150,
-        hierarchical: false
-      }
+      layout: { improvedLayout: true, clusterThreshold: 150, hierarchical: false },
     };
 
     const network = new Network(containerRef.current, { nodes, edges }, options);
 
-    console.log(`Network initialized with ${nodes.length} nodes and ${edges.length} edges`);
-    console.log('Node IDs:', graphData.nodes.map(n => n.id));
-    console.log('All nodes data:', nodes.map(n => ({ id: n.id, label: n.label })));
-    console.log('vis-network nodes:', nodes.get());
-    console.log('vis-network edges:', edges.get());
-
-    // Enhanced event handlers
     network.on('click', (params) => {
       if (params.nodes.length > 0) {
         const nodeId = params.nodes[0];
-        const node = graphData.nodes.find(n => n.id === nodeId);
-        if (node) {
-          setSelectedNode(node);
-          onNodeClick?.(node.story);
-        }
+        const node   = graphData.nodes.find(n => n.id === nodeId);
+        if (node) { setSelectedNode(node); onNodeClick?.(node.story); }
       } else {
         setSelectedNode(null);
       }
     });
 
-    network.on('hoverNode', (params) => {
-      const nodeId = params.node;
-      const node = graphData.nodes.find(n => n.id === nodeId);
-      if (node && containerRef.current) {
-        containerRef.current.style.cursor = 'pointer';
-      }
+    network.on('hoverNode', () => {
+      if (containerRef.current) containerRef.current.style.cursor = 'pointer';
     });
 
     network.on('blurNode', () => {
-      if (containerRef.current) {
-        containerRef.current.style.cursor = 'default';
-      }
-    });
-
-    network.on('stabilizationProgress', (params) => {
-      const progress = Math.round((params.iterations / params.total) * 100);
-      console.log(`Network stabilization: ${progress}%`);
+      if (containerRef.current) containerRef.current.style.cursor = 'default';
     });
 
     network.on('stabilizationIterationsDone', () => {
-      console.log('Network stabilized - enabling smooth interactions');
       network.setOptions({ physics: { enabled: false } });
-      
-      // Debug: Check node positions
       setTimeout(() => {
-        const positions = network.getPositions();
-        console.log('Node positions after stabilization:', positions);
-        console.log('Number of positioned nodes:', Object.keys(positions).length);
-        
-        // Check if any nodes are outside viewport
-        const canvasSize = network.getViewPosition();
-        const scale = network.getScale();
-        console.log('Canvas view position:', canvasSize);
-        console.log('Canvas scale:', scale);
-        
-        // Get canvas dimensions
-        const canvas = containerRef.current?.querySelector('canvas');
-        if (canvas) {
-          console.log('Canvas dimensions:', { width: canvas.width, height: canvas.height });
-        }
-        
-        network.fit({
-          animation: {
-            duration: 1000,
-            easingFunction: 'easeInOutQuad'
-          }
-        });
+        network.fit({ animation: { duration: 1000, easingFunction: 'easeInOutQuad' } });
       }, 100);
     });
 
     networkRef.current = network;
   };
 
-  useEffect(() => {
-    loadGraphData();
-  }, []);
+  // ─── Effects ────────────────────────────────────────────────
+
+  useEffect(() => { loadGraphData(); }, []);
 
   useEffect(() => {
-    if (graphData && !loading) {
-      initializeNetwork();
-    }
-
-    return () => {
-      if (networkRef.current) {
-        networkRef.current.destroy();
-        networkRef.current = null;
-      }
-    };
+    if (graphData && !loading) initializeNetwork();
+    return () => { if (networkRef.current) { networkRef.current.destroy(); networkRef.current = null; } };
   }, [graphData, loading]);
 
+  // ─── Control handlers (unchanged) ──────────────────────────
+
   const handleFitNetwork = () => {
-    if (networkRef.current) {
-      networkRef.current.fit({
-        animation: {
-          duration: 1200,
-          easingFunction: 'easeInOutCubic'
-        }
-      });
-    }
+    networkRef.current?.fit({ animation: { duration: 1200, easingFunction: 'easeInOutCubic' } });
   };
 
   const handleRandomFocus = () => {
-    if (networkRef.current && graphData && graphData.nodes.length > 0) {
-      const randomNode = graphData.nodes[Math.floor(Math.random() * graphData.nodes.length)];
-      networkRef.current.focus(randomNode.id, {
-        scale: 1.8,
-        animation: {
-          duration: 1200,
-          easingFunction: 'easeInOutCubic'
-        }
-      });
-      setSelectedNode(randomNode);
+    if (networkRef.current && graphData?.nodes.length) {
+      const node = graphData.nodes[Math.floor(Math.random() * graphData.nodes.length)];
+      networkRef.current.focus(node.id, { scale: 1.8, animation: { duration: 1200, easingFunction: 'easeInOutCubic' } });
+      setSelectedNode(node);
     }
   };
 
   const handleFunniestStory = () => {
     if (networkRef.current && stats.funniestStory) {
-      networkRef.current.focus(stats.funniestStory.id, {
-        scale: 2.2,
-        animation: {
-          duration: 1200,
-          easingFunction: 'easeInOutCubic'
-        }
-      });
+      networkRef.current.focus(stats.funniestStory.id, { scale: 2.2, animation: { duration: 1200, easingFunction: 'easeInOutCubic' } });
       setSelectedNode(stats.funniestStory);
     }
   };
 
+  // ─── Loading ────────────────────────────────────────────────
+
   if (loading) {
     return (
-      <div className={`flex items-center justify-center min-h-[600px] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 rounded-xl border border-gray-700/50 ${className}`}>
-        <div className="text-center space-y-6">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto" />
-            <div className="absolute inset-0 w-20 h-20 border-4 border-purple-500/20 border-b-purple-500 rounded-full animate-spin mx-auto" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-          </div>
-          <div className="space-y-2">
-            <div className="text-white font-medium text-lg">Building News Network</div>
-            <div className="text-gray-400 text-sm">Analyzing story relationships and connections...</div>
+      <div className={`flex items-center justify-center rounded-xl border border-border/40 bg-[hsl(240,10%,4%)] ${className}`}
+        style={{ minHeight: '75vh' }}
+      >
+        <div className="text-center space-y-4">
+          <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="space-y-1">
+            <p className="text-foreground text-sm font-medium">Building Story Network</p>
+            <p className="text-muted-foreground text-xs">Analyzing relationships between stories</p>
           </div>
         </div>
       </div>
     );
   }
 
+  // ─── Error ──────────────────────────────────────────────────
+
   if (error) {
     return (
-      <div className={`flex items-center justify-center min-h-[600px] bg-gradient-to-br from-red-900/20 via-gray-900 to-gray-800 rounded-xl border border-red-500/30 ${className}`}>
-        <div className="text-center space-y-6 p-8">
-          <div className="text-red-400 text-4xl mb-4">!</div>
-          <div className="space-y-2">
-            <div className="text-white font-medium text-lg">Network Unavailable</div>
-            <div className="text-gray-400 text-sm max-w-md">{error}</div>
+      <div className={`flex items-center justify-center rounded-xl border border-border/40 bg-[hsl(240,10%,4%)] ${className}`}
+        style={{ minHeight: '75vh' }}
+      >
+        <div className="text-center space-y-4 p-8 max-w-sm">
+          <p className="font-mono text-2xl text-muted-foreground/30">!</p>
+          <div className="space-y-1">
+            <p className="text-foreground text-sm font-medium">Network Unavailable</p>
+            <p className="text-muted-foreground text-xs leading-relaxed">{error}</p>
           </div>
           <button
             onClick={loadGraphData}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white font-medium transition-all duration-200 transform hover:scale-105"
+            className="px-5 py-2 rounded-lg bg-amber-400 text-zinc-950 text-sm font-bold hover:bg-amber-300 transition-colors"
           >
-            Retry Connection
+            Retry
           </button>
         </div>
       </div>
     );
   }
 
+  // ─── Panel card shared style ─────────────────────────────────
+
+  const panel = 'bg-background/85 backdrop-blur-md border border-border/50 rounded-xl';
+  const panelLabel = 'text-[9px] font-mono font-bold uppercase tracking-[0.15em] text-amber-400 mb-3 block';
+
+  // ─── Main render ────────────────────────────────────────────
+
   return (
-    <div className={`relative network-container rounded-xl overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 ${className}`}>
-      {/* Enhanced Control Panel */}
-      <div className="absolute top-6 left-6 z-20 flex flex-col gap-3">
-        <div className="bg-gray-800/90 backdrop-blur-lg rounded-xl p-3 border border-gray-600/50">
-          <div className="text-xs font-medium text-gray-300 mb-3 uppercase tracking-wide">Navigation</div>
+    <div
+      className={`relative rounded-xl overflow-hidden border border-border/40 ${className}`}
+      style={{ background: 'hsl(240,10%,4%)', minHeight: '75vh' }}
+    >
+      {/* Dot-grid overlay — matches site background texture */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.025)_1px,transparent_0)] [background-size:24px_24px] pointer-events-none z-0" />
+
+      {/* ── Control panel — top left ──────────────────────────── */}
+      <div className="absolute top-4 left-4 z-20">
+        <div className={`${panel} p-3.5 min-w-[120px]`}>
+          <span className={panelLabel}>Controls</span>
           <div className="space-y-2">
             <button
               onClick={handleFitNetwork}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
+              className="w-full px-3 py-2 rounded-lg bg-amber-400 text-zinc-950 text-xs font-bold hover:bg-amber-300 transition-colors"
             >
-              Fit All
+              Fit View
             </button>
             <button
               onClick={handleRandomFocus}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
+              className="w-full px-3 py-2 rounded-lg border border-border/50 text-foreground text-xs font-medium hover:border-amber-400/40 hover:text-amber-400 transition-colors"
             >
-              Explore
+              Random
             </button>
             {stats.funniestStory && (
               <button
                 onClick={handleFunniestStory}
-                className="w-full px-4 py-2.5 bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
+                className="w-full px-3 py-2 rounded-lg border border-border/50 text-foreground text-xs font-medium hover:border-amber-400/40 hover:text-amber-400 transition-colors"
               >
                 Funniest
               </button>
@@ -474,24 +340,30 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
         </div>
       </div>
 
-      {/* Enhanced Stats Panel */}
-      <div className="absolute top-6 right-6 z-20">
-        <div className="bg-gray-800/90 backdrop-blur-lg rounded-xl p-4 border border-gray-600/50">
-          <div className="text-xs font-medium text-gray-300 mb-3 uppercase tracking-wide">Network Stats</div>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-gray-400">Stories</span>
-              <span className="text-blue-400 font-medium">{stats.totalStories}</span>
+      {/* ── Stats panel — top right ───────────────────────────── */}
+      <div className="absolute top-4 right-4 z-20">
+        <div className={`${panel} p-3.5 min-w-[140px]`}>
+          <span className={panelLabel}>Network Stats</span>
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-xs text-muted-foreground">Stories</span>
+              <span className="text-xs font-mono font-bold text-amber-400 tabular-nums">
+                {stats.totalStories}
+              </span>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-gray-400">Links</span>
-              <span className="text-green-400 font-medium">{stats.connections}</span>
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-xs text-muted-foreground">Links</span>
+              <span className="text-xs font-mono font-bold text-amber-400 tabular-nums">
+                {stats.connections}
+              </span>
             </div>
             {stats.funniestStory && (
-              <div className="pt-2 border-t border-gray-600">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Peak Funny</span>
-                  <span className="text-pink-400 font-medium">{stats.funniestStory.story.funny_score}%</span>
+              <div className="pt-2 border-t border-border/30">
+                <div className="flex items-center justify-between gap-6">
+                  <span className="text-xs text-muted-foreground">Peak Score</span>
+                  <span className="text-xs font-mono font-bold text-amber-400 tabular-nums">
+                    {stats.funniestStory.story.funny_score}
+                  </span>
                 </div>
               </div>
             )}
@@ -499,115 +371,118 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
         </div>
       </div>
 
-      {/* Enhanced Selected Node Panel */}
+      {/* ── Selected node panel — bottom left ────────────────── */}
       {selectedNode && (
-        <div className="absolute bottom-6 left-6 z-20 max-w-sm">
-          <div className="bg-gray-800/95 backdrop-blur-lg rounded-xl p-5 border border-gray-600/50">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  selectedNode.story.source_type === 'reddit' ? 'bg-orange-500' :
-                  selectedNode.story.source_type === 'rss' ? 'bg-blue-500' : 'bg-purple-500'
-                }`}></div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                  {selectedNode.story.source_type}
-                </div>
+        <div className="absolute bottom-4 left-4 z-20 w-72">
+          <div className={`${panel} p-4`}>
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: getNodeBorderColor(selectedNode.story.source_type || 'rss') }}
+                />
+                <span className="text-[9px] font-mono font-bold uppercase tracking-[0.15em] text-muted-foreground">
+                  {selectedNode.story.source_type ?? 'news'}
+                </span>
               </div>
               <button
                 onClick={() => setSelectedNode(null)}
-                className="w-7 h-7 flex items-center justify-center hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
-                ✕
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            
-            <div className="space-y-3">
-              <h3 className="text-white font-medium text-sm leading-relaxed line-clamp-2">
-                {selectedNode.story.title}
-              </h3>
-              
-              <div className="text-xs text-gray-400">
-                {selectedNode.story.source}
-              </div>
-              
-              <div className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-500">Funny:</span>
-                  <span className="text-pink-400 font-medium">{selectedNode.story.funny_score}%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-500">Votes:</span>
-                  <span className="text-green-400 font-medium">{selectedNode.story.upvotes}</span>
-                </div>
-              </div>
 
-              {selectedNode.story.tags && selectedNode.story.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedNode.story.tags.slice(0, 6).map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs font-medium"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                  {selectedNode.story.tags.length > 6 && (
-                    <span className="text-xs text-gray-500 py-1">
-                      +{selectedNode.story.tags.length - 6} more
-                    </span>
-                  )}
-                </div>
-              )}
-              
-              <a
-                href={selectedNode.story.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white text-sm font-medium transition-all duration-200 transform hover:scale-105"
-              >
-                Read Story
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
+            {/* Title */}
+            <h3 className="font-display font-bold text-sm text-foreground leading-snug line-clamp-2 mb-2">
+              {selectedNode.story.title}
+            </h3>
+
+            {/* Source */}
+            <p className="text-[11px] text-muted-foreground mb-3 truncate">
+              {selectedNode.story.source}
+            </p>
+
+            {/* Stats */}
+            <div className="flex items-center gap-4 text-xs mb-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Score</span>
+                <span className="font-mono font-bold text-amber-400">
+                  {selectedNode.story.funny_score ?? 'N/A'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Votes</span>
+                <span className="font-mono font-bold text-green-400">
+                  {(selectedNode.story.upvotes ?? 0).toLocaleString()}
+                </span>
+              </div>
             </div>
+
+            {/* Tags */}
+            {selectedNode.story.tags && selectedNode.story.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-4">
+                {selectedNode.story.tags.slice(0, 5).map((tag, i) => (
+                  <span
+                    key={i}
+                    className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-400/8 text-amber-400/80 border border-amber-400/15"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {selectedNode.story.tags.length > 5 && (
+                  <span className="text-[9px] text-muted-foreground/50 py-0.5">
+                    +{selectedNode.story.tags.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* CTA */}
+            <a
+              href={selectedNode.story.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full h-8 rounded-lg bg-amber-400 text-zinc-950 text-xs font-bold hover:bg-amber-300 transition-colors"
+            >
+              Read Story
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </div>
       )}
 
-      {/* Network Container */}
-      <div
-        ref={containerRef}
-        className="w-full h-full min-h-[600px]"
-        style={{ height: '85vh' }}
-      />
-
-      {/* Enhanced Legend */}
-      <div className="absolute bottom-6 right-6 z-20">
-        <div className="bg-gray-800/90 backdrop-blur-lg rounded-xl p-4 border border-gray-600/50">
-          <div className="text-xs font-medium text-gray-300 mb-3 uppercase tracking-wide">Legend</div>
-          <div className="space-y-2.5 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-              <span className="text-gray-300">Reddit</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-gray-300">RSS Feed</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span className="text-gray-300">API Source</span>
-            </div>
-            <div className="pt-2 border-t border-gray-600 space-y-1">
-              <div className="text-gray-400">Size = Funny Score</div>
-              <div className="text-gray-400">Lines = Relationships</div>
-            </div>
+      {/* ── Legend — bottom right ─────────────────────────────── */}
+      <div className="absolute bottom-4 right-4 z-20">
+        <div className={`${panel} p-3.5`}>
+          <span className={panelLabel}>Legend</span>
+          <div className="space-y-2 mb-3">
+            {[
+              { color: 'bg-orange-500', label: 'Reddit'  },
+              { color: 'bg-blue-500',   label: 'RSS Feed' },
+              { color: 'bg-sky-400',    label: 'Twitter'  },
+              { color: 'bg-purple-500', label: 'API'      },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-2.5">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
+                <span className="text-xs text-muted-foreground">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2.5 border-t border-border/30 space-y-1">
+            <p className="text-[10px] text-muted-foreground/60">Size = Funny Score</p>
+            <p className="text-[10px] text-muted-foreground/60">Lines = Relationships</p>
           </div>
         </div>
       </div>
 
-
+      {/* ── vis-network canvas ────────────────────────────────── */}
+      <div
+        ref={containerRef}
+        className="w-full relative z-10"
+        style={{ height: '75vh' }}
+      />
     </div>
   );
 }
