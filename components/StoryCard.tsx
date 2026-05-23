@@ -42,7 +42,10 @@ function getGradient(story: NewsStory): string {
   if (story.source_type && SOURCE_COLORS[story.source_type]) {
     return SOURCE_COLORS[story.source_type];
   }
-  return GRADIENTS[(story.id ?? 0) % GRADIENTS.length];
+  let h = 0;
+  const s = story.slug ?? '';
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return GRADIENTS[h % GRADIENTS.length];
 }
 
 function FunnyMeter({ score }: { score?: number }) {
@@ -75,7 +78,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
     if (isVoting) return;
     setIsVoting(true);
     try {
-      const response = await fetch(`/api/stories/${story.id}/vote`, {
+      const response = await fetch(`/api/stories/${story.slug}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vote_type: voteType }),

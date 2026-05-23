@@ -37,7 +37,7 @@ function TopCard({ story, rank }: { story: NewsStory; rank: number }) {
           {RANK_LABELS[rank]}
         </span>
         <div className="flex-1 min-w-0">
-          <Link href={`/story/${story.id}`}>
+          <Link href={`/story/${story.slug}`}>
             <h3 className="font-display font-bold text-foreground text-lg leading-snug group-hover:text-amber-400 transition-colors line-clamp-2">
               {story.title}
             </h3>
@@ -93,7 +93,7 @@ function RankedRow({ story, rank }: { story: NewsStory; rank: number }) {
         {rank}
       </span>
       <div className="flex-1 min-w-0">
-        <Link href={`/story/${story.id}`}>
+        <Link href={`/story/${story.slug}`}>
           <h3 className="font-display font-semibold text-foreground text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-1.5">
             {story.title}
           </h3>
@@ -223,7 +223,7 @@ export default function TrendingPage() {
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {top3.map((story, i) => (
-                      <TopCard key={story.id} story={story} rank={i} />
+                      <TopCard key={story.slug ?? story.url} story={story} rank={i} />
                     ))}
                   </div>
                 </div>
@@ -237,7 +237,7 @@ export default function TrendingPage() {
                   </h2>
                   <div className="rounded-xl border border-border/50 bg-card/50 divide-y divide-border/30 overflow-hidden">
                     {rest.map((story, i) => (
-                      <div key={story.id} className="px-4">
+                      <div key={story.slug ?? story.url} className="px-4">
                         <RankedRow story={story} rank={i + 4} />
                       </div>
                     ))}

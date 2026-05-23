@@ -1,5 +1,6 @@
 export type NewsStory = {
   id?: number;
+  slug?: string;
   title: string;
   url: string;
   source: string;

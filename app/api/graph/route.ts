@@ -13,7 +13,7 @@ export async function GET() {
     const stories = result.data;
 
     const nodes = stories.map(story => ({
-      id: story.id ?? story.url,
+      id: story.slug ?? story.url,
       label: story.title.length > 30 ? story.title.slice(0, 30) + '...' : story.title,
       title: `${story.title}\nFunny Score: ${story.funny_score ?? 0}/100\nSource: ${story.source}`,
       color: getNodeColor(story.source_type || 'rss', story.funny_score ?? 50),

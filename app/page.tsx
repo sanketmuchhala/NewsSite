@@ -25,8 +25,15 @@ const CARD_THEMES = [
   { gradient: 'from-indigo-950 via-violet-900/50 to-purple-950'  },
 ];
 
+function slugIndex(slug: string | undefined, len: number): number {
+  if (!slug) return 0;
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  return h % len;
+}
+
 function getTheme(story: NewsStory) {
-  return CARD_THEMES[(story.id ?? 0) % CARD_THEMES.length];
+  return CARD_THEMES[slugIndex(story.slug, CARD_THEMES.length)];
 }
 
 function timeAgo(date: string | Date | null | undefined): string | null {
@@ -121,7 +128,7 @@ function FeaturedCard({ story }: { story: NewsStory }) {
               </span>
             )}
           </div>
-          <Link href={`/story/${story.id}`}>
+          <Link href={`/story/${story.slug}`}>
             <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground leading-tight hover:text-amber-400 transition-colors duration-150 mb-3">
               {story.title}
             </h2>
@@ -146,7 +153,7 @@ function FeaturedCard({ story }: { story: NewsStory }) {
             <span className="text-amber-400/70 font-mono">Score {story.funny_score ?? 70}</span>
           </div>
           <div className="flex gap-2">
-            <Link href={`/story/${story.id}`}>
+            <Link href={`/story/${story.slug}`}>
               <Button size="sm" className="bg-amber-400 text-zinc-950 hover:bg-amber-300 font-bold text-xs">
                 Read Story
               </Button>
@@ -168,7 +175,7 @@ function FeaturedCard({ story }: { story: NewsStory }) {
 
 function MiniCard({ story }: { story: NewsStory }) {
   return (
-    <Link href={`/story/${story.id}`} className="group block">
+    <Link href={`/story/${story.slug}`} className="group block">
       <div className="rounded-xl overflow-hidden border border-border/40 bg-card/10 hover:border-amber-400/25 hover:bg-card/40 transition-all duration-150">
         <Thumbnail story={story} className="h-28 w-full" />
         <div className="p-3.5">
@@ -506,7 +513,7 @@ function LandingContent() {
                 {gridStories.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {gridStories.map((story, i) => (
-                      <div key={story.id} style={{ animation: `heroIn 0.5s ${i * 0.06}s ease both` }}>
+                      <div key={story.slug ?? story.url} style={{ animation: `heroIn 0.5s ${i * 0.06}s ease both` }}>
                         <MiniCard story={story} />
                       </div>
                     ))}

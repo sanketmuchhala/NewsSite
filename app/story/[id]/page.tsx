@@ -101,10 +101,10 @@ export default function StoryPage({ params }: StoryPageProps) {
     setUpvoted(true);
     setLocalUpvotes(prev => prev + 1);
     try {
-      await fetch(`/api/stories/${story.id}/vote`, {
+      await fetch(`/api/stories/${story.slug}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vote_type: 'up' }),
+        body: JSON.stringify({ vote_type: 'upvote' }),
       });
     } catch {
       // optimistic update stays

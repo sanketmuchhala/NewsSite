@@ -8,6 +8,7 @@ function storyDoc(id: string) { return getAdminDb().collection('stories').doc(id
 function toNewsStory(id: string, data: FirebaseFirestore.DocumentData): NewsStory {
   return {
     id: parseInt(id, 10) || undefined,
+    slug: id,
     title:        data.title       as string,
     url:          data.url         as string,
     source:       data.source      as string,

@@ -21,8 +21,15 @@ const CARD_THEMES = [
   { gradient: 'from-indigo-950 via-violet-900/70 to-purple-950', accent: 'border-indigo-800/60' },
 ];
 
+function slugIndex(slug: string | undefined, len: number): number {
+  if (!slug) return 0;
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  return h % len;
+}
+
 function getTheme(story: NewsStory) {
-  return CARD_THEMES[(story.id ?? 0) % CARD_THEMES.length];
+  return CARD_THEMES[slugIndex(story.slug, CARD_THEMES.length)];
 }
 
 // ─── Filter config ────────────────────────────────────────────
@@ -64,7 +71,7 @@ function DiscoverCard({ story }: { story: NewsStory }) {
 
   return (
     <div className="break-inside-avoid mb-4">
-      <Link href={`/story/${story.id}`} className="group block">
+      <Link href={`/story/${story.slug}`} className="group block">
         <article className={`rounded-xl overflow-hidden border ${theme.accent} bg-card/20 hover:bg-card/50 hover:border-amber-400/30 hover:shadow-lg hover:shadow-amber-400/[0.04] transition-all duration-200`}>
           {/* Gradient thumbnail */}
           <div
@@ -444,7 +451,7 @@ export default function DiscoverPage() {
             <>
               <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
                 {visible.map(story => (
-                  <DiscoverCard key={story.id} story={story} />
+                  <DiscoverCard key={story.slug ?? story.url} story={story} />
                 ))}
               </div>
 

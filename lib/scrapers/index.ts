@@ -203,9 +203,13 @@ export class NewsStoryScraper {
       const batch = uniqueStories.slice(i, i + batchSize);
       await Promise.allSettled(batch.map(async (story) => {
         try {
-          const enhanced = await this.enhanceNewsStoryWithAI(story);
-          const docId = this.urlToFirestoreId(story.url);
-          const saved = await adminUpsertStory(docId, enhanced);
+          const [enhanced, ogImage] = await Promise.all([
+            this.enhanceNewsStoryWithAI(story),
+            story.image_url ? Promise.resolve(null) : this.fetchOgImage(story.url),
+          ]);
+          const finalStory = { ...enhanced, image_url: enhanced.image_url || ogImage || null };
+          const docId = this.urlToSlug(story.url, story.title || 'untitled');
+          const saved = await adminUpsertStory(docId, finalStory);
           if (saved.success) { results.success++; } else { results.failed++; }
         } catch {
           results.failed++;
@@ -218,12 +222,36 @@ export class NewsStoryScraper {
     return results;
   }
 
-  private urlToFirestoreId(url: string): string {
+  private urlToSlug(url: string, title: string): string {
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .slice(0, 60)
+      .replace(/-+$/, '');
     let h = 0;
     for (let i = 0; i < url.length; i++) {
       h = Math.imul(31, h) + url.charCodeAt(i) | 0;
     }
-    return Math.abs(h).toString(36);
+    return `${slug}-${Math.abs(h).toString(36).slice(0, 6)}`;
+  }
+
+  private async fetchOgImage(url: string): Promise<string | null> {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FunnyNewsBot/1.0)' },
+        signal: AbortSignal.timeout(4000),
+      });
+      const html = await res.text();
+      const match =
+        html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ??
+        html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+      return match?.[1] ?? null;
+    } catch {
+      return null;
+    }
   }
   
   private removeDuplicates(stories: NewsStory[]): NewsStory[] {
