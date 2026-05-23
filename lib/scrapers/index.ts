@@ -2,6 +2,7 @@
 import { RedditScraper } from './reddit';
 import { TwitterScraper } from './twitter';
 import { RssScraper } from './rss';
+import { HackerNewsScraper } from './hackernews';
 import { NewsStory } from '@/types';
 import { createStory, createStoryRelationship } from '@/lib/db';
 import { geminiClient } from '@/lib/ai/gemini';
@@ -24,11 +25,13 @@ export class NewsStoryScraper {
   private redditScraper: RedditScraper;
   private twitterScraper: TwitterScraper;
   private rssScraper: RssScraper;
+  private hnScraper: HackerNewsScraper;
 
   constructor(config: ScraperConfig = {}) {
     this.redditScraper = new RedditScraper(config.reddit?.clientId, config.reddit?.clientSecret);
     this.twitterScraper = new TwitterScraper(config.twitter?.apiKey, config.twitter?.apiSecret);
     this.rssScraper = new RssScraper(config.rss?.feeds);
+    this.hnScraper = new HackerNewsScraper();
   }
 
   async scrapeReddit(limit: number = 10): Promise<NewsStory[]> {
@@ -76,6 +79,18 @@ export class NewsStoryScraper {
     const stories = await this.rssScraper.parseAllFeeds(Math.ceil(limit / 10));
     console.log(`Scraped ${stories.length} stories from RSS feeds`);
     return stories.slice(0, limit);
+  }
+
+  async scrapeHackerNews(limit: number = 10): Promise<NewsStory[]> {
+    console.log('Scraping Hacker News...');
+    try {
+      const stories = await this.hnScraper.scrape(limit);
+      console.log(`Scraped ${stories.length} stories from Hacker News`);
+      return stories;
+    } catch (error) {
+      console.error('Hacker News scraping failed:', error);
+      return [];
+    }
   }
 
   async enhanceNewsStoryWithAI(story: NewsStory): Promise<NewsStory> {
@@ -227,11 +242,16 @@ export class NewsStoryScraper {
           .catch(error => {
             console.error('Twitter scraping failed:', error.message || error);
             return [];
+          }),
+        this.scrapeHackerNews(maxPerSource)
+          .catch(error => {
+            console.error('Hacker News scraping failed:', error.message || error);
+            return [];
           })
       ];
       
       // Execute all scraping operations in parallel
-      const [redditStories, rssStories, twitterStories] = await Promise.allSettled(scrapePromises)
+      const [redditStories, rssStories, twitterStories, hnStories] = await Promise.allSettled(scrapePromises)
         .then(results => results.map(result => 
           result.status === 'fulfilled' ? result.value : []
         ));
@@ -239,13 +259,15 @@ export class NewsStoryScraper {
       const allStories: NewsStory[] = [
         ...redditStories,
         ...rssStories,
-        ...twitterStories
+        ...twitterStories,
+        ...hnStories
       ];
       
       console.log(`Total stories collected: ${allStories.length}`, {
         reddit: redditStories.length,
         rss: rssStories.length,
-        twitter: twitterStories.length
+        twitter: twitterStories.length,
+        hn: hnStories.length
       });
       
       results.total = allStories.length;

@@ -137,11 +137,11 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
         </div>
 
         {/* Title */}
-        <Link href={`/story/${story.id}`} className="block group/title mb-3">
+        <a href={story.url || '#'} target="_blank" rel="noopener noreferrer" className="block group/title mb-3">
           <h3 className="font-display text-base font-semibold text-foreground leading-snug group-hover/title:text-primary transition-colors line-clamp-2">
             {story.title}
           </h3>
-        </Link>
+        </a>
 
         {/* Summary */}
         {story.summary && (

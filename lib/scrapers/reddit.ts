@@ -38,7 +38,7 @@ export class RedditScraper {
         `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`,
         {
           headers: {
-            'User-Agent': 'FunnyNewsAggregator/1.0 (by /u/funnynews)',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
         }
       );
@@ -109,9 +109,15 @@ export class RedditScraper {
     const tags = this.generateTags(postData, subreddit);
     
     // Use Reddit URL for source, but original URL if it's a link post
-    const sourceUrl = postData.url && !postData.url.includes('reddit.com') 
-      ? postData.url 
-      : `https://www.reddit.com${postData.permalink}`;
+    let sourceUrl = postData.url;
+    if (!sourceUrl || sourceUrl.includes('reddit.com') || sourceUrl.startsWith('/r/')) {
+      sourceUrl = `https://www.reddit.com${postData.permalink}`;
+    }
+    
+    // Ensure URL is absolute
+    if (sourceUrl && sourceUrl.startsWith('/')) {
+      sourceUrl = `https://www.reddit.com${sourceUrl}`;
+    }
     
     return {
       title: postData.title,

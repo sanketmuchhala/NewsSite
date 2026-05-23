@@ -11,7 +11,7 @@ export class RssScraper {
     this.parser = new Parser({
       timeout: 15000, // Increased timeout for serverless
       headers: {
-        'User-Agent': 'FunnyNewsAggregator/1.0 (+https://funnynews.com/bot)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/rss+xml, application/xml, text/xml',
         'Cache-Control': 'no-cache'
       },
@@ -25,15 +25,17 @@ export class RssScraper {
   getDefaultFunnyNewsFeeds(): string[] {
     return [
       // Satirical News
-      'https://feeds.theonion.com/onion/daily',                    // The Onion
+      'https://theonion.com/feed/',                                // The Onion
       'https://babylonbee.com/feed',                               // Babylon Bee
       'https://www.clickhole.com/rss',                            // ClickHole
       'https://reductress.com/feed/',                             // Reductress
       
-      // Weird News
+      // Weird News & Humor
       'https://www.upi.com/rss/Odd_News/',                        // UPI Odd News
       'https://feeds.reuters.com/reuters/oddlyEnoughNews',         // Reuters Odd News
-      'https://abcnews.go.com/Entertainment/wireStory?rss=true',  // ABC Entertainment
+      'https://www.npr.org/rss/rss.php?id=1052',                  // NPR Humor
+      'https://www.reddit.com/r/nottheonion/.rss',                // Reddit RSS fallback
+      'https://www.reddit.com/r/FloridaMan/.rss',                 // Reddit RSS fallback
       
       // Tech/Internet Culture (often funny)
       'https://feeds.mashable.com/Mashable',                      // Mashable
@@ -41,7 +43,6 @@ export class RssScraper {
       
       // General Weird/Interesting
       'https://www.mentalfloss.com/feed',                         // Mental Floss
-      'https://www.boredpanda.com/feed/',                         // Bored Panda
       'https://www.cracked.com/feeds/rss.xml',                    // Cracked
     ];
   }
