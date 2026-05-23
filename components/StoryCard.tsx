@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { NewsStory } from '@/types';
-import Link from 'next/link';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,22 +52,16 @@ function FunnyMeter({ score }: { score?: number }) {
     s >= 75 ? 'bg-lime-400' :
     s >= 60 ? 'bg-yellow-400' :
     s >= 45 ? 'bg-orange-400' : 'bg-red-400';
-  const label =
-    s >= 90 ? '😂' :
-    s >= 75 ? '😄' :
-    s >= 60 ? '🙂' :
-    s >= 45 ? '😐' : '😑';
 
   return (
     <div className="flex items-center gap-1.5" title={`Funny score: ${s}/100`}>
-      <span className="text-sm leading-none">{label}</span>
       <div className="relative w-14 h-1.5 bg-muted rounded-full overflow-hidden">
         <div
           className={`absolute inset-y-0 left-0 ${barColor} rounded-full`}
           style={{ width: `${s}%` }}
         />
       </div>
-      <span className="text-xs font-mono font-bold text-muted-foreground tabular-nums">{s}</span>
+      <span className="text-[10px] font-mono font-bold text-amber-400 tabular-nums">{s}</span>
     </div>
   );
 }

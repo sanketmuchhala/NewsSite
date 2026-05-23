@@ -11,14 +11,14 @@ import { formatDistanceToNow } from 'date-fns';
 // ─── Theme system ─────────────────────────────────────────────
 
 const CARD_THEMES = [
-  { gradient: 'from-orange-950 via-orange-900/70 to-amber-950',   emoji: '🔥', accent: 'border-orange-800/60' },
-  { gradient: 'from-emerald-950 via-green-900/70 to-teal-950',    emoji: '🌿', accent: 'border-emerald-800/60' },
-  { gradient: 'from-blue-950 via-blue-900/70 to-cyan-950',        emoji: '⚡', accent: 'border-blue-800/60' },
-  { gradient: 'from-purple-950 via-violet-900/70 to-indigo-950',  emoji: '🪄', accent: 'border-purple-800/60' },
-  { gradient: 'from-rose-950 via-pink-900/70 to-rose-950',        emoji: '🎭', accent: 'border-rose-800/60' },
-  { gradient: 'from-teal-950 via-cyan-900/70 to-sky-950',         emoji: '🌊', accent: 'border-teal-800/60' },
-  { gradient: 'from-amber-950 via-yellow-900/70 to-orange-950',   emoji: '✨', accent: 'border-amber-800/60' },
-  { gradient: 'from-indigo-950 via-violet-900/70 to-purple-950',  emoji: '🎯', accent: 'border-indigo-800/60' },
+  { gradient: 'from-orange-950 via-orange-900/70 to-amber-950',  accent: 'border-orange-800/60' },
+  { gradient: 'from-emerald-950 via-green-900/70 to-teal-950',   accent: 'border-emerald-800/60' },
+  { gradient: 'from-blue-950 via-blue-900/70 to-cyan-950',       accent: 'border-blue-800/60' },
+  { gradient: 'from-purple-950 via-violet-900/70 to-indigo-950', accent: 'border-purple-800/60' },
+  { gradient: 'from-rose-950 via-pink-900/70 to-rose-950',       accent: 'border-rose-800/60' },
+  { gradient: 'from-teal-950 via-cyan-900/70 to-sky-950',        accent: 'border-teal-800/60' },
+  { gradient: 'from-amber-950 via-yellow-900/70 to-orange-950',  accent: 'border-amber-800/60' },
+  { gradient: 'from-indigo-950 via-violet-900/70 to-purple-950', accent: 'border-indigo-800/60' },
 ];
 
 function getTheme(story: NewsStory) {
@@ -28,15 +28,15 @@ function getTheme(story: NewsStory) {
 // ─── Filter config ────────────────────────────────────────────
 
 const MOOD_FILTERS = [
-  { id: 'all',      label: 'All Stories',   emoji: '📰', tags: [],                                                          sources: [] },
-  { id: 'wtf',      label: 'WTF',           emoji: '😳', tags: ['wtf','bizarre','absurd','florida-man','stupid','nottheonion'], sources: [] },
-  { id: 'animals',  label: 'Animals',       emoji: '🦆', tags: ['animals','geese','bird','peacock','squirrel','pigeon'],      sources: [] },
-  { id: 'satire',   label: 'Satire',        emoji: '🗞️', tags: ['satire','onion','babylon-bee','clickhole'],                  sources: ['onion','babylon','clickhole','beaverton'] },
-  { id: 'science',  label: 'Science',       emoji: '🔬', tags: ['science','scientists','research','discovery'],               sources: [] },
-  { id: 'politics', label: 'Politics',      emoji: '🏛️', tags: ['politics','government','rally','election','politician'],    sources: [] },
-  { id: 'tech',     label: 'Tech',          emoji: '💻', tags: ['technology','tech','ai','gps','internet','navigation'],     sources: [] },
-  { id: 'law',      label: 'Law & Order',   emoji: '⚖️', tags: ['lawsuit','arrested','court','911','police','sues'],         sources: [] },
-  { id: 'viral',    label: 'Viral',         emoji: '🚀', tags: [],                                                            sources: [], minUpvotes: 1000 },
+  { id: 'all',      label: 'All Stories',  tags: [],                                                               sources: [] },
+  { id: 'wtf',      label: 'WTF',          tags: ['wtf','bizarre','absurd','florida-man','stupid','nottheonion'],  sources: [] },
+  { id: 'animals',  label: 'Animals',      tags: ['animals','geese','bird','peacock','squirrel','pigeon'],         sources: [] },
+  { id: 'satire',   label: 'Satire',       tags: ['satire','onion','babylon-bee','clickhole'],                    sources: ['onion','babylon','clickhole','beaverton'] },
+  { id: 'science',  label: 'Science',      tags: ['science','scientists','research','discovery'],                  sources: [] },
+  { id: 'politics', label: 'Politics',     tags: ['politics','government','rally','election','politician'],        sources: [] },
+  { id: 'tech',     label: 'Tech',         tags: ['technology','tech','ai','gps','internet','navigation'],        sources: [] },
+  { id: 'law',      label: 'Law & Order',  tags: ['lawsuit','arrested','court','911','police','sues'],            sources: [] },
+  { id: 'viral',    label: 'Viral',        tags: [],                                                               sources: [], minUpvotes: 1000 },
 ];
 
 const SOURCE_FILTERS = [
@@ -71,14 +71,13 @@ function DiscoverCard({ story }: { story: NewsStory }) {
             className={`bg-gradient-to-br ${theme.gradient} relative flex items-center justify-center overflow-hidden`}
             style={{ paddingTop: '60%' }}
           >
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-7xl opacity-[0.12] select-none">{theme.emoji}</span>
-            </div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.04)_1px,transparent_0)] [background-size:16px_16px]" />
             {/* Funny score */}
             {story.funny_score !== undefined && (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
-                <span className="text-[11px]">😂</span>
-                <span className="text-[11px] font-mono font-bold text-amber-400 tabular-nums">{story.funny_score}</span>
+              <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm rounded px-2 py-1">
+                <span className="text-[10px] font-mono font-bold text-amber-400 tabular-nums tracking-wider">
+                  {story.funny_score}
+                </span>
               </div>
             )}
             {/* Source type chip */}
@@ -350,7 +349,6 @@ export default function DiscoverPage() {
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent'
                     }`}
                   >
-                    <span className="text-base leading-none w-5 text-center">{mood.emoji}</span>
                     <span className="font-medium text-sm">{mood.label}</span>
                   </button>
                 ))}

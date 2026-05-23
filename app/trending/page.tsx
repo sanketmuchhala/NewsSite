@@ -3,18 +3,18 @@
 import { useState, useEffect } from 'react';
 import { NewsStory } from '@/types';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowUp, ExternalLink, TrendingUp, Flame, Clock } from 'lucide-react';
 import { StoryCardSkeleton } from '@/components/Skeletons';
 import { formatDistanceToNow } from 'date-fns';
 
-const MEDALS = ['🥇', '🥈', '🥉'];
-const MEDAL_COLORS = [
-  'border-amber-400/40 bg-amber-400/5',
-  'border-slate-400/40 bg-slate-400/5',
-  'border-orange-700/40 bg-orange-700/5',
+const RANK_LABELS = ['01', '02', '03'];
+const RANK_COLORS = [
+  'border-amber-400/30 bg-amber-400/[0.04]',
+  'border-border/50 bg-muted/[0.04]',
+  'border-border/40 bg-muted/[0.03]',
 ];
+const RANK_NUM_COLORS = ['text-amber-400', 'text-muted-foreground/60', 'text-muted-foreground/50'];
 
 function TrendingScore({ story }: { story: NewsStory }) {
   const score = (story.upvotes || 0) + (story.funny_score || 0) * 0.1;
@@ -31,12 +31,14 @@ function TopCard({ story, rank }: { story: NewsStory; rank: number }) {
     : null;
 
   return (
-    <div className={`relative rounded-2xl border ${MEDAL_COLORS[rank]} p-6 flex flex-col gap-3 hover:shadow-lg transition-all duration-200 group`}>
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-3xl leading-none mt-0.5">{MEDALS[rank]}</span>
+    <div className={`relative rounded-xl border ${RANK_COLORS[rank]} p-6 flex flex-col gap-3 hover:shadow-lg transition-all duration-200 group`}>
+      <div className="flex items-start gap-3">
+        <span className={`font-mono font-black text-2xl leading-none mt-0.5 shrink-0 tabular-nums ${RANK_NUM_COLORS[rank]}`}>
+          {RANK_LABELS[rank]}
+        </span>
         <div className="flex-1 min-w-0">
           <Link href={`/story/${story.id}`}>
-            <h3 className="font-display font-bold text-foreground text-lg leading-snug group-hover:text-primary transition-colors line-clamp-2">
+            <h3 className="font-display font-bold text-foreground text-lg leading-snug group-hover:text-amber-400 transition-colors line-clamp-2">
               {story.title}
             </h3>
           </Link>
@@ -51,17 +53,17 @@ function TopCard({ story, rank }: { story: NewsStory; rank: number }) {
 
       <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/30">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-xs font-semibold text-foreground">
-            <ArrowUp className="w-3 h-3 text-green-400" />
+          <span className="flex items-center gap-1 text-xs font-semibold text-green-400">
+            <ArrowUp className="w-3 h-3" />
             {(story.upvotes || 0).toLocaleString()}
           </span>
           {story.funny_score !== undefined && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              😂 {story.funny_score}
-            </Badge>
+            <span className="text-[10px] font-mono font-bold text-amber-400/70">
+              Score {story.funny_score}
+            </span>
           )}
           {publishedAgo && (
-            <span className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground/60">
+            <span className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground/50">
               <Clock className="w-2.5 h-2.5" />
               {publishedAgo}
             </span>
@@ -103,7 +105,7 @@ function RankedRow({ story, rank }: { story: NewsStory; rank: number }) {
             {(story.upvotes || 0).toLocaleString()}
           </span>
           {story.funny_score !== undefined && (
-            <span className="text-xs text-muted-foreground/70">😂 {story.funny_score}</span>
+            <span className="text-[10px] font-mono text-amber-400/60">Score {story.funny_score}</span>
           )}
           {publishedAgo && (
             <span className="text-[10px] text-muted-foreground/50">{publishedAgo}</span>
@@ -168,7 +170,7 @@ export default function TrendingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-4xl mb-4">😵</p>
+          <p className="font-mono text-2xl mb-4 text-muted-foreground">x_x</p>
           <p className="font-display text-xl font-bold text-foreground mb-2">Failed to load</p>
           <p className="text-sm text-muted-foreground mb-6">{error}</p>
           <Button onClick={() => window.location.reload()} size="sm">Try Again</Button>
@@ -207,7 +209,7 @@ export default function TrendingPage() {
         <div className="container-responsive">
           {stories.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-4xl mb-4">📈</p>
+              <p className="font-mono text-2xl mb-4 text-muted-foreground/40">--</p>
               <h3 className="font-display text-xl font-bold text-foreground mb-2">No trending stories yet</h3>
               <p className="text-sm text-muted-foreground">Check back soon!</p>
             </div>

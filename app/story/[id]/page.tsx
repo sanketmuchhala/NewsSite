@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   ExternalLink, ArrowLeft, ThumbsUp, Clock, Share2, Link2, Check,
-  Twitter, MessageCircle, Eye,
+  MessageCircle, Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
@@ -36,7 +36,7 @@ function ShareButton({ story }: { story: NewsStory }) {
     }
   };
 
-  const shareOnTwitter = () => {
+  const shareOnShare2 = () => {
     const text = encodeURIComponent(`"${story.title}" via FunnyNews`);
     const url = encodeURIComponent(pageUrl);
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'noopener,noreferrer');
@@ -51,10 +51,10 @@ function ShareButton({ story }: { story: NewsStory }) {
         variant="outline"
         size="sm"
         className="h-8 px-3 gap-1.5 text-xs"
-        onClick={shareOnTwitter}
+        onClick={shareOnShare2}
       >
-        <Twitter className="w-3.5 h-3.5" />
-        Twitter
+        <Share2 className="w-3.5 h-3.5" />
+        Share2
       </Button>
       <Button
         variant="outline"
@@ -132,7 +132,7 @@ export default function StoryPage({ params }: StoryPageProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-5xl mb-6">😵</p>
+          <p className="font-mono text-2xl mb-6 text-muted-foreground/40">404</p>
           <h1 className="font-display text-2xl font-bold text-foreground mb-3">Story Not Found</h1>
           <p className="text-muted-foreground text-sm mb-6 max-w-xs mx-auto">
             {error || "The story you're looking for doesn't exist or has been removed."}
@@ -208,7 +208,7 @@ export default function StoryPage({ params }: StoryPageProps) {
               <div className="flex flex-wrap gap-2 mb-6">
                 {story.funny_score !== undefined && (
                   <Badge className="gap-1.5 bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
-                    😂 {story.funny_score} · {funnyLabel}
+                    Score {story.funny_score} / {funnyLabel}
                   </Badge>
                 )}
                 <Badge variant="outline" className="gap-1.5">

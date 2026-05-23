@@ -14,10 +14,10 @@ const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const sources = [
-    { id: 'reddit', name: 'Reddit', icon: '🚀' },
-    { id: 'twitter', name: 'Twitter', icon: '🐦' },
+    { id: 'reddit', name: 'Reddit', icon: 'R' },
+    { id: 'twitter', name: 'Twitter', icon: 'T' },
     { id: 'rss', name: 'RSS Feeds', icon: 'RSS' },
-    { id: 'api', name: 'News APIs', icon: '🔌' },
+    { id: 'api', name: 'News APIs', icon: 'A' },
   ];
 
   const timeRanges = [
