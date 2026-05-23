@@ -8,9 +8,9 @@ import { Menu, X, Sun, Moon, Zap } from 'lucide-react';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
+  { href: '/discover', label: 'Discover' },
   { href: '/trending', label: 'Trending' },
   { href: '/graph', label: 'Network' },
-  { href: '/sources', label: 'Sources' },
 ];
 
 export default function Header() {
