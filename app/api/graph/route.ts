@@ -1,89 +1,89 @@
 import { NextResponse } from 'next/server';
-import { getGraphData } from '@/lib/db';
+import { adminGetStories } from '@/lib/firebase/firestore-admin';
+import { NewsStory } from '@/types';
 
 export async function GET() {
-  console.log('Graph API called');
   try {
-    console.log('Getting graph data...');
-    const result = await getGraphData();
-    console.log('Graph data result:', result);
+    const result = await adminGetStories(100, 'scraped_at');
 
     if (!result.success || !result.data) {
-      console.log('Graph data fetch failed:', result.error);
-      return NextResponse.json(
-        { error: result.error || 'Failed to fetch graph data' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: result.error || 'Failed to fetch stories' }, { status: 500 });
     }
 
-    const { stories, relationships } = result.data;
-    console.log('Stories count:', stories.length, 'Relationships count:', relationships.length);
+    const stories = result.data;
 
-    // Transform data for vis-network
     const nodes = stories.map(story => ({
-      id: story.id,
-      label: story.title.length > 30 ? story.title.substring(0, 30) + '...' : story.title,
-      title: `${story.title}\nFunny Score: ${story.funny_score || 0}/100\nTags: ${(story.tags || []).join(', ')}\nSource: ${story.source}`,
-      color: getNodeColor(story.source_type || 'rss', story.funny_score || 50),
-      size: Math.max(15, Math.min(30, (story.funny_score || 50) * 0.3)),
+      id: story.id ?? story.url,
+      label: story.title.length > 30 ? story.title.slice(0, 30) + '...' : story.title,
+      title: `${story.title}\nFunny Score: ${story.funny_score ?? 0}/100\nSource: ${story.source}`,
+      color: getNodeColor(story.source_type || 'rss', story.funny_score ?? 50),
+      size: Math.max(15, Math.min(30, (story.funny_score ?? 50) * 0.3)),
       font: { size: 12 },
-      story
+      story,
     }));
 
-    const edges = relationships.map(rel => ({
-      from: rel.source_id,
-      to: rel.target_id,
-      label: rel.relationship_type,
-      color: getEdgeColor(rel.relationship_type),
-      width: Math.max(1, (rel.strength || 0.5) * 3),
-      font: { size: 10 },
-      relationship: rel
+    const edges = computeRelationships(stories).map(rel => ({
+      from: rel.from,
+      to: rel.to,
+      label: rel.type,
+      color: getEdgeColor(rel.type),
+      width: Math.max(1, rel.strength * 3),
     }));
 
-    const graphData = { nodes, edges };
-    console.log('Sending graph data:', { nodeCount: nodes.length, edgeCount: edges.length });
-
-    return NextResponse.json({
-      success: true,
-      data: graphData
-    });
+    return NextResponse.json({ success: true, data: { nodes, edges } });
   } catch (error) {
     console.error('Graph API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-function getNodeColor(sourceType: string, funnyScore: number): string {
-  const baseColors = {
-    reddit: '#FF4500',
-    rss: '#FF6600', 
-    twitter: '#1DA1F2',
-    api: '#9900CC'
-  };
+function computeRelationships(stories: NewsStory[]) {
+  const edges: { from: unknown; to: unknown; type: string; strength: number }[] = [];
 
-  // Adjust intensity based on funny score
-  const intensity = Math.max(0.6, funnyScore / 100);
-  const color = baseColors[sourceType as keyof typeof baseColors] || '#666666';
-  
-  // Convert hex to RGB and apply intensity
-  const r = parseInt(color.slice(1, 3), 16);
-  const g = parseInt(color.slice(3, 5), 16);
-  const b = parseInt(color.slice(5, 7), 16);
-  
-  return `rgba(${r}, ${g}, ${b}, ${intensity})`;
+  for (let i = 0; i < stories.length; i++) {
+    for (let j = i + 1; j < stories.length; j++) {
+      const a = stories[i];
+      const b = stories[j];
+      const idA = a.id ?? a.url;
+      const idB = b.id ?? b.url;
+      if (!idA || !idB) continue;
+
+      let strength = 0;
+      const sharedTags = (a.tags || []).filter(t => (b.tags || []).includes(t));
+      strength += sharedTags.length * 0.2;
+      if (a.source === b.source) strength += 0.3;
+      const wordsA = a.title.toLowerCase().split(/\s+/);
+      const wordsB = b.title.toLowerCase().split(/\s+/);
+      strength += wordsA.filter(w => w.length > 3 && wordsB.includes(w)).length * 0.1;
+
+      if (strength > 0.3) {
+        edges.push({
+          from: idA,
+          to: idB,
+          type: strength > 0.7 ? 'similar' : a.source === b.source ? 'follow_up' : 'related',
+          strength: Math.min(strength, 1),
+        });
+      }
+    }
+  }
+  return edges;
 }
 
-function getEdgeColor(relationshipType: string): string {
-  const colors = {
-    similar: '#10B981',
-    related: '#06B6D4',
-    follow_up: '#8B5CF6',
-    contradicts: '#EC4899',
-    updates: '#F59E0B'
+function getNodeColor(sourceType: string, funnyScore: number): string {
+  const base: Record<string, string> = {
+    reddit: '#FF4500', rss: '#FF6600', twitter: '#1DA1F2', api: '#9900CC',
   };
+  const hex = base[sourceType] || '#666666';
+  const intensity = Math.max(0.6, funnyScore / 100);
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const bv = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${bv},${intensity})`;
+}
 
-  return colors[relationshipType as keyof typeof colors] || '#666666';
+function getEdgeColor(type: string): string {
+  const colors: Record<string, string> = {
+    similar: '#10B981', related: '#06B6D4', follow_up: '#8B5CF6',
+  };
+  return colors[type] || '#666666';
 }

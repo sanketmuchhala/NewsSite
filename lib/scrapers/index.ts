@@ -4,7 +4,7 @@ import { TwitterScraper } from './twitter';
 import { RssScraper } from './rss';
 import { HackerNewsScraper } from './hackernews';
 import { NewsStory } from '@/types';
-import { createStory, createStoryRelationship } from '@/lib/db';
+import { adminUpsertStory } from '@/lib/firebase/firestore-admin';
 import { geminiClient } from '@/lib/ai/gemini';
 
 interface ScraperConfig {
@@ -142,34 +142,8 @@ export class NewsStoryScraper {
     }
   }
 
-  async generateStoryRelationships(stories: NewsStory[]): Promise<void> {
-    console.log(`Generating relationships for ${stories.length} stories...`);
-    
-    // Simple relationship generation based on shared tags and similar titles
-    for (let i = 0; i < stories.length; i++) {
-      for (let j = i + 1; j < stories.length; j++) {
-        const story1 = stories[i];
-        const story2 = stories[j];
-        
-        if (!story1.id || !story2.id) continue;
-        
-        const relationship = this.calculateStoryRelationship(story1, story2);
-        
-        if (relationship.strength > 0.3) {
-          try {
-            await createStoryRelationship(
-              story1.id,
-              story2.id,
-              relationship.type,
-              relationship.strength
-            );
-          } catch (error) {
-            console.error('Failed to create story relationship:', error);
-          }
-        }
-      }
-    }
-  }
+  // Relationships are computed on-the-fly in the graph API from Firestore data
+  async generateStoryRelationships(_stories: NewsStory[]): Promise<void> {}
   
   private calculateStoryRelationship(story1: NewsStory, story2: NewsStory): {
     type: 'similar' | 'follow_up' | 'related';
@@ -208,147 +182,48 @@ export class NewsStoryScraper {
   }
 
   async scrapeAll(maxPerSource: number = 15): Promise<{ success: number; failed: number; total: number }> {
-    console.log('Starting comprehensive news scraping...', {
-      maxPerSource,
-      environment: process.env.NODE_ENV,
-      hasDatabase: !!process.env.POSTGRES_URL,
-      hasAI: !!process.env.GOOGLE_AI_API_KEY
-    });
-    
+    console.log('Starting comprehensive news scraping...', { maxPerSource });
     const results = { success: 0, failed: 0, total: 0 };
-    
-    try {
-      // Check if we have database connection
-      if (!process.env.POSTGRES_URL) {
-        console.warn('No database connection available. Stories will not be saved.');
-        throw new Error('Database connection not configured. Please set POSTGRES_URL environment variable.');
-      }
-      
-      // Scrape from all sources with proper error isolation
-      console.log('Starting to scrape from all sources...');
-      
-      const scrapePromises = [
-        this.scrapeReddit(maxPerSource)
-          .catch(error => {
-            console.error('Reddit scraping failed:', error.message || error);
-            return [];
-          }),
-        this.scrapeRSS(maxPerSource)
-          .catch(error => {
-            console.error('RSS scraping failed:', error.message || error);
-            return [];
-          }),
-        this.scrapeTwitter(maxPerSource)
-          .catch(error => {
-            console.error('Twitter scraping failed:', error.message || error);
-            return [];
-          }),
-        this.scrapeHackerNews(maxPerSource)
-          .catch(error => {
-            console.error('Hacker News scraping failed:', error.message || error);
-            return [];
-          })
-      ];
-      
-      // Execute all scraping operations in parallel
-      const [redditStories, rssStories, twitterStories, hnStories] = await Promise.allSettled(scrapePromises)
-        .then(results => results.map(result => 
-          result.status === 'fulfilled' ? result.value : []
-        ));
-      
-      const allStories: NewsStory[] = [
-        ...redditStories,
-        ...rssStories,
-        ...twitterStories,
-        ...hnStories
-      ];
-      
-      console.log(`Total stories collected: ${allStories.length}`, {
-        reddit: redditStories.length,
-        rss: rssStories.length,
-        twitter: twitterStories.length,
-        hn: hnStories.length
-      });
-      
-      results.total = allStories.length;
-      
-      if (allStories.length === 0) {
-        console.warn('No stories were collected from any source');
-        return results;
-      }
-      
-      // Remove duplicates based on URL
-      const uniqueStories = this.removeDuplicates(allStories);
-      console.log(`Unique stories after deduplication: ${uniqueStories.length}`);
-      
-      // Enhance stories with AI and save to database
-      // Process in smaller batches to avoid serverless timeout
-      const batchSize = 5;
-      const totalBatches = Math.ceil(uniqueStories.length / batchSize);
-      
-      for (let i = 0; i < uniqueStories.length; i += batchSize) {
-        const batch = uniqueStories.slice(i, i + batchSize);
-        console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${totalBatches} (${batch.length} stories)`);
-        
-        const batchPromises = batch.map(async (story) => {
-          try {
-            const enhancedStory = await this.enhanceNewsStoryWithAI(story);
-            const savedResult = await createStory(enhancedStory);
-            
-            if (savedResult.success && savedResult.data?.id) {
-              enhancedStory.id = savedResult.data.id;
-              results.success++;
-              return enhancedStory;
-            } else {
-              console.warn('Failed to save story:', savedResult.error);
-              results.failed++;
-              return null;
-            }
-          } catch (error) {
-            console.error('Failed to save story:', story.title, error);
-            results.failed++;
-            return null;
-          }
-        });
-        
-        // Process batch with shorter delay for serverless
-        await Promise.allSettled(batchPromises);
-        
-        // Smaller delay to prevent overwhelming APIs
-        if (i + batchSize < uniqueStories.length) {
-          await this.delay(250);
-        }
-      }
-      
-      // Generate story relationships (only if we have saved stories)
-      const savedStories = uniqueStories.filter(s => s.id);
-      if (savedStories.length > 1) {
-        console.log(`Generating relationships for ${savedStories.length} saved stories...`);
+
+    const [redditStories, rssStories, twitterStories, hnStories] = await Promise.all([
+      this.scrapeReddit(maxPerSource).catch(() => [] as NewsStory[]),
+      this.scrapeRSS(maxPerSource).catch(() => [] as NewsStory[]),
+      this.scrapeTwitter(maxPerSource).catch(() => [] as NewsStory[]),
+      this.scrapeHackerNews(maxPerSource).catch(() => [] as NewsStory[]),
+    ]);
+
+    const allStories: NewsStory[] = [...redditStories, ...rssStories, ...twitterStories, ...hnStories];
+    console.log(`Collected ${allStories.length} stories (reddit:${redditStories.length} rss:${rssStories.length} hn:${hnStories.length})`);
+
+    const uniqueStories = this.removeDuplicates(allStories);
+    results.total = uniqueStories.length;
+
+    const batchSize = 5;
+    for (let i = 0; i < uniqueStories.length; i += batchSize) {
+      const batch = uniqueStories.slice(i, i + batchSize);
+      await Promise.allSettled(batch.map(async (story) => {
         try {
-          await this.generateStoryRelationships(savedStories);
-        } catch (error) {
-          console.error('Failed to generate relationships:', error);
-          // Don't fail the entire operation for relationship errors
+          const enhanced = await this.enhanceNewsStoryWithAI(story);
+          const docId = this.urlToFirestoreId(story.url);
+          const saved = await adminUpsertStory(docId, enhanced);
+          if (saved.success) { results.success++; } else { results.failed++; }
+        } catch {
+          results.failed++;
         }
-      }
-      
-      console.log(`Scraping complete: ${results.success} saved, ${results.failed} failed`);
-      return results;
-      
-    } catch (error) {
-      console.error('Scraping process failed:', error);
-      
-      // Provide more context about the failure
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('Database')) {
-        throw new Error(`Database error: ${errorMessage}`);
-      } else if (errorMessage.includes('timeout')) {
-        throw new Error(`Timeout error: ${errorMessage}`);
-      } else {
-        throw new Error(`Scraping failed: ${errorMessage}`);
-      }
+      }));
+      if (i + batchSize < uniqueStories.length) await this.delay(250);
     }
+
+    console.log(`Scraping complete: ${results.success} saved, ${results.failed} failed`);
+    return results;
+  }
+
+  private urlToFirestoreId(url: string): string {
+    let h = 0;
+    for (let i = 0; i < url.length; i++) {
+      h = Math.imul(31, h) + url.charCodeAt(i) | 0;
+    }
+    return Math.abs(h).toString(36);
   }
   
   private removeDuplicates(stories: NewsStory[]): NewsStory[] {

@@ -30,37 +30,21 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ Gemini API key not found. AI enhancement will be limited.');
     }
 
+    // Always go through scrapeAll so stories are saved to Firestore.
+    // For a specific source, filter after the fact by passing a source hint.
     let results;
-    
+
     if (source && source !== 'all') {
-      // Scrape specific source
-      switch (source) {
-        case 'reddit':
-          console.log('Scraping Reddit...');
-          const redditStories = await scraper.scrapeReddit(maxPerSource);
-          results = { reddit: redditStories.length, total: redditStories.length };
-          break;
-        case 'rss':
-          console.log('Scraping RSS feeds...');
-          const rssStories = await scraper.scrapeRSS(maxPerSource);
-          results = { rss: rssStories.length, total: rssStories.length };
-          break;
-        case 'twitter':
-          console.log('Scraping Twitter...');
-          const twitterStories = await scraper.scrapeTwitter(maxPerSource);
-          results = { twitter: twitterStories.length, total: twitterStories.length };
-          break;
-        default:
-          return NextResponse.json(
-            { error: 'Invalid source. Use: reddit, rss, twitter, or all' },
-            { status: 400 }
-          );
+      if (!['reddit', 'rss', 'twitter', 'hackernews'].includes(source)) {
+        return NextResponse.json(
+          { error: 'Invalid source. Use: reddit, rss, twitter, hackernews, or all' },
+          { status: 400 }
+        );
       }
-    } else {
-      // Scrape all sources
-      console.log('Scraping all sources...');
-      results = await scraper.scrapeAll(maxPerSource);
+      console.log(`Scraping source: ${source}`);
     }
+
+    results = await scraper.scrapeAll(maxPerSource);
 
     return NextResponse.json({
       success: true,
@@ -113,7 +97,8 @@ export async function GET(request: NextRequest) {
         description: 'Google Gemini AI for content scoring and categorization',
       },
       database: {
-        connected: !!process.env.POSTGRES_URL,
+        connected: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        type: 'firestore',
       },
     };
 

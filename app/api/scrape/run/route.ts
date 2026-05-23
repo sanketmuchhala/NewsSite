@@ -28,17 +28,6 @@ export async function POST(req: NextRequest) {
       hasAI: !!process.env.GOOGLE_AI_API_KEY
     });
 
-    // Check if database is available for Vercel deployment
-    if (!process.env.POSTGRES_URL) {
-      console.warn('No database connection available in production');
-      return NextResponse.json({
-        success: false,
-        error: 'Database not configured',
-        details: 'POSTGRES_URL environment variable is missing. Please configure your Vercel Postgres database.',
-        code: 'DB_MISSING'
-      }, { status: 503 });
-    }
-
     const scraper = new NewsStoryScraper({
       reddit: {
         clientId: process.env.REDDIT_CLIENT_ID,
