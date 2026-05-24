@@ -61,13 +61,25 @@ export async function adminGetStoryById(
   }
 }
 
+/** Recursively strip undefined values — Firestore throws on them */
+function stripUndefined<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (v !== undefined) out[k] = stripUndefined(v);
+  }
+  return out as T;
+}
+
 export async function adminUpsertStory(
   id: string,
   story: Partial<NewsStory>
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const clean = stripUndefined(story);
     await storyDoc(id).set(
-      { ...story, scraped_at: FieldValue.serverTimestamp(), updated_at: FieldValue.serverTimestamp() },
+      { ...clean, scraped_at: FieldValue.serverTimestamp(), updated_at: FieldValue.serverTimestamp() },
       { merge: true }
     );
     return { success: true };

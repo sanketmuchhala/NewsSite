@@ -1,74 +1,121 @@
 import { NewsStory } from '@/types';
 
+// Queries grouped by intent — we rotate through them to get variety
+const QUERY_GROUPS = {
+  weird:   ['weird', 'bizarre', 'absurd', 'ridiculous', 'florida man', 'man arrested', 'woman arrested'],
+  funny:   ['funny', 'hilarious', 'joke', 'satire', 'comedy', 'accidentally'],
+  tech:    ['AI fails', 'startup fails', 'bug causes', 'outage', 'data breach', 'scam', 'exploit'],
+  science: ['scientists discover', 'study finds', 'researchers find', 'unexpected discovery'],
+};
+
+const ALL_QUERIES = Object.values(QUERY_GROUPS).flat();
+
 export class HackerNewsScraper {
-  private searchQueries = ['funny', 'weird', 'bizarre', 'crazy', 'joke', 'satire', 'florida man'];
-
-  async scrape(limit: number = 10): Promise<NewsStory[]> {
+  async scrape(limit = 15): Promise<NewsStory[]> {
+    console.log('Scraping Hacker News…');
+    const seenUrls = new Set<string>();
     const stories: NewsStory[] = [];
-    console.log(`Scraping Hacker News...`);
 
-    for (const query of this.searchQueries) {
+    // Round-robin across groups for variety
+    const queries = [...ALL_QUERIES];
+
+    for (const query of queries) {
       if (stories.length >= limit) break;
-      
       try {
-        const response = await fetch(
-          `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&numericFilters=points>50`,
-          {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            },
-          }
-        );
+        const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&numericFilters=points>30&hitsPerPage=8`;
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FunnyNewsBot/1.0)' },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) continue;
 
-        if (!response.ok) {
-          console.warn(`Hacker News API error for query "${query}": ${response.status}`);
-          continue;
-        }
+        const data = await res.json();
+        const hits: any[] = data.hits ?? [];
 
-        const data = await response.json();
-        
-        if (data.hits && Array.isArray(data.hits)) {
-          const validHits = data.hits
-            .filter((hit: any) => hit.title && hit.url && !stories.some(s => s.url === hit.url))
-            .slice(0, Math.ceil(limit / this.searchQueries.length));
-            
-          for (const hit of validHits) {
-            stories.push(this.transformToNewsStory(hit, query));
-          }
+        for (const hit of hits) {
+          if (!hit.title || !hit.url) continue;
+          if (seenUrls.has(hit.url)) continue;
+          seenUrls.add(hit.url);
+          stories.push(this.transform(hit, query));
+          if (stories.length >= limit) break;
         }
-      } catch (error) {
-        console.error(`Error fetching HN stories for query "${query}":`, error);
+      } catch {
+        // silently skip failed queries
       }
     }
 
+    // Also grab HN's front page "top stories" for general interesting content
+    try {
+      const top = await this.scrapeTopStories(Math.min(5, limit - stories.length), seenUrls);
+      stories.push(...top);
+    } catch { /* optional */ }
+
+    console.log(`HN: ${stories.length} stories`);
     return stories.slice(0, limit);
   }
 
-  private transformToNewsStory(hit: any, query: string): NewsStory {
-    const tags = ['tech', 'hackernews', query.replace(' ', '-')];
-    
-    // Attempt to extract some content/summary
-    let summary = hit.story_text || hit.title;
-    if (summary.length > 300) {
-      summary = summary.substring(0, 297) + '...';
+  private async scrapeTopStories(limit: number, seenUrls: Set<string>): Promise<NewsStory[]> {
+    if (limit <= 0) return [];
+    const res = await fetch(
+      'https://hn.algolia.com/api/v1/search?tags=front_page&numericFilters=points>100&hitsPerPage=10',
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.hits ?? [])
+      .filter((h: any) => h.title && h.url && !seenUrls.has(h.url))
+      .slice(0, limit)
+      .map((h: any) => { seenUrls.add(h.url); return this.transform(h, 'front_page'); });
+  }
+
+  private transform(hit: any, query: string): NewsStory {
+    // Determine category from query group
+    let category = 'tech';
+    for (const [cat, queries] of Object.entries(QUERY_GROUPS)) {
+      if (queries.includes(query)) { category = cat; break; }
     }
 
+    const tags = ['hackernews', category];
+    const title = hit.title as string;
+    const titleLower = title.toLowerCase();
+
+    // Add more specific tags
+    if (/weed|cannabis|marijuana|420|stoner/i.test(titleLower)) tags.push('weed', '420');
+    if (/florida/i.test(titleLower)) tags.push('florida-man');
+    if (/ai|openai|chatgpt|llm/i.test(titleLower)) tags.push('ai');
+    if (/startup|ipo|funding/i.test(titleLower)) tags.push('startup');
+    if (/arrest|crime|theft|hack/i.test(titleLower)) tags.push('crime');
+
+    // Funny score: base from points + bonuses
+    const pts = hit.points ?? 0;
+    let funny_score = 45 + Math.min(20, Math.floor(pts / 100) * 5);
+    if (category === 'weird' || category === 'funny') funny_score += 15;
+    if (/weird|bizarre|absurd|funny|ridiculous/i.test(titleLower)) funny_score += 10;
+    funny_score = Math.min(95, funny_score);
+
+    const summary = hit.story_text
+      ? hit.story_text.replace(/<[^>]*>/g, '').trim().slice(0, 300)
+      : title;
+
     return {
-      title: hit.title,
+      title,
       url: hit.url,
       source: 'Hacker News',
-      source_type: 'api' as const, // Using api for HN
+      source_type: 'api',
       published_at: new Date(hit.created_at),
-      summary: summary,
+      summary,
+      content: null,
       author: hit.author,
-      funny_score: 50 + (hit.points > 100 ? 15 : 5), // Base score + bonus for upvotes
-      upvotes: hit.points || 0,
+      funny_score,
+      upvotes: pts,
       view_count: 0,
-      tags: tags,
+      tags: [...new Set(tags)],
+      image_url: null,
       metadata: {
         hn_id: hit.objectID,
-        comments: hit.num_comments
-      }
+        comments: hit.num_comments,
+        hn_query: query,
+      },
     };
   }
 }

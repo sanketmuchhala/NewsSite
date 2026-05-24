@@ -3,7 +3,7 @@ import { RssScraper } from './lib/scrapers/rss';
 async function main() {
   const scraper = new RssScraper();
   console.log('Fetching feeds...');
-  const feeds = scraper.getDefaultFunnyNewsFeeds();
+  const feeds = scraper.getFeedUrls();
   console.log('Feeds:', feeds);
   
   // Just test the first few

@@ -75,9 +75,12 @@ export class NewsStoryScraper {
     return stories;
   }
 
-  async scrapeRSS(limit: number = 20): Promise<NewsStory[]> {
+  async scrapeRSS(limit: number = 60): Promise<NewsStory[]> {
     console.log('Scraping RSS feeds...');
-    const stories = await this.rssScraper.parseAllFeeds(Math.ceil(limit / 10));
+    // We have ~30 feeds; use at least 3 stories per feed so we get good coverage.
+    // Then cap the total at `limit` after deduplication.
+    const perFeed = Math.max(3, Math.ceil(limit / this.rssScraper.getFeedUrls().length));
+    const stories = await this.rssScraper.parseAllFeeds(perFeed);
     console.log(`Scraped ${stories.length} stories from RSS feeds`);
     return stories.slice(0, limit);
   }
@@ -196,9 +199,12 @@ export class NewsStoryScraper {
     console.log('Starting comprehensive news scraping...', { maxPerSource });
     const results = { success: 0, failed: 0, total: 0 };
 
+    // RSS gets a higher budget since we have ~30 feeds — 4 per feed → ~120 stories cap
+    const rssLimit = Math.max(60, maxPerSource * 4);
+
     const [redditStories, rssStories, twitterStories, hnStories] = await Promise.all([
       this.scrapeReddit(maxPerSource).catch(() => [] as NewsStory[]),
-      this.scrapeRSS(maxPerSource).catch(() => [] as NewsStory[]),
+      this.scrapeRSS(rssLimit).catch(() => [] as NewsStory[]),
       this.scrapeTwitter(maxPerSource).catch(() => [] as NewsStory[]),
       this.scrapeHackerNews(maxPerSource).catch(() => [] as NewsStory[]),
     ]);

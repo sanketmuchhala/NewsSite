@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { RssScraper } from '@/lib/scrapers/rss';
 
 export async function GET() {
   return NextResponse.json({
@@ -6,31 +7,37 @@ export async function GET() {
     message: 'Scraper API is working',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    database: !!process.env.POSTGRES_URL,
-    ai_enabled: !!process.env.GOOGLE_AI_API_KEY
   });
 }
 
+// Debug: test RSS scraping without saving to Firestore
 export async function POST() {
   try {
-    // Simple test scraper that just returns mock data
-    const mockResults = {
-      success: 3,
-      failed: 0,
-      total: 3
-    };
-    
+    const scraper = new RssScraper();
+    const feeds = scraper.getFeedUrls();
+    console.log(`Testing ${feeds.length} RSS feeds…`);
+
+    const stories = await scraper.parseAllFeeds(2);
+
+    const bySource: Record<string, number> = {};
+    for (const s of stories) {
+      bySource[s.source] = (bySource[s.source] ?? 0) + 1;
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Test scraper completed successfully',
-      results: mockResults,
-      note: 'This is a test endpoint. Use /api/scrape/run for actual scraping (requires admin auth).'
+      total: stories.length,
+      feeds: feeds.length,
+      bySource,
+      sample: stories.slice(0, 5).map(s => ({
+        title: s.title,
+        source: s.source,
+        tags: s.tags,
+        category: (s.metadata as any)?.feed_category,
+        funny_score: s.funny_score,
+      })),
     });
   } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: 'Test scraper failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
   }
 }
