@@ -64,6 +64,8 @@ const SORT_OPTIONS = [
 
 function DiscoverCard({ story }: { story: NewsStory }) {
   const theme = getTheme(story);
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = !!story.image_url && !imgFailed;
   const ago = (() => {
     if (!story.published_at) return null;
     try { return formatDistanceToNow(new Date(story.published_at), { addSuffix: true }); } catch { return null; }
@@ -73,12 +75,25 @@ function DiscoverCard({ story }: { story: NewsStory }) {
     <div className="break-inside-avoid mb-4">
       <Link href={`/story/${story.slug}`} className="group block">
         <article className={`rounded-xl overflow-hidden border ${theme.accent} bg-card/20 hover:bg-card/50 hover:border-amber-400/30 hover:shadow-lg hover:shadow-amber-400/[0.04] transition-all duration-200`}>
-          {/* Gradient thumbnail */}
+          {/* Thumbnail — real image or gradient fallback */}
           <div
-            className={`bg-gradient-to-br ${theme.gradient} relative flex items-center justify-center overflow-hidden`}
+            className={`relative overflow-hidden ${!showImage ? `bg-gradient-to-br ${theme.gradient}` : 'bg-muted/30'}`}
             style={{ paddingTop: '60%' }}
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.04)_1px,transparent_0)] [background-size:16px_16px]" />
+            {showImage ? (
+              <img
+                src={story.image_url!}
+                alt={story.title}
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                onError={() => setImgFailed(true)}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.04)_1px,transparent_0)] [background-size:16px_16px]" />
+            )}
+            {/* Gradient scrim over image so badges are always readable */}
+            {showImage && (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+            )}
             {/* Funny score */}
             {story.funny_score !== undefined && (
               <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm rounded px-2 py-1">
@@ -89,7 +104,7 @@ function DiscoverCard({ story }: { story: NewsStory }) {
             )}
             {/* Source type chip */}
             <div className="absolute bottom-3 left-3">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 bg-black/30 rounded px-1.5 py-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white/60 bg-black/40 backdrop-blur-sm rounded px-1.5 py-0.5">
                 {story.source_type ?? 'news'}
               </span>
             </div>
