@@ -6,6 +6,7 @@ import { HackerNewsScraper } from './hackernews';
 import { NewsStory } from '@/types';
 import { adminUpsertStory } from '@/lib/firebase/firestore-admin';
 import { geminiClient } from '@/lib/ai/gemini';
+import { fetchArticleText as sharedFetchArticleText, extractReadableSummary } from './article-extractor';
 
 interface ScraperConfig {
   reddit?: {
@@ -96,38 +97,48 @@ export class NewsStoryScraper {
   async enhanceNewsStoryWithAI(story: NewsStory): Promise<NewsStory> {
     try {
       console.log(`Enhancing story with AI: ${story.title}`);
-      
-      // Use Gemini to enhance the story
+
+      // Fetch actual article text to give Gemini real content to work with
+      const articleText = await sharedFetchArticleText(story.url);
+      const contentForAI = articleText || story.summary || story.content || '';
+
       const [enhancedSummary, aiTags, aiFunnyScore] = await Promise.all([
         geminiClient.generateNewsStoryAnalysis(
-          story.title, 
-          story.source, 
-          story.tags || []
+          story.title,
+          story.source,
+          story.tags || [],
+          contentForAI,
         ),
         geminiClient.categorizeNewsStory(
-          story.title, 
-          story.source, 
-          story.summary || undefined
+          story.title,
+          story.source,
+          contentForAI || undefined
         ),
         geminiClient.calculateFunnyScore(
-          story.title, 
-          story.source, 
-          story.summary || undefined, 
+          story.title,
+          story.source,
+          contentForAI || undefined,
           story.tags || []
         )
       ]);
-      
+
       // Merge AI-generated tags with existing tags
       const combinedTags = [...new Set([
         ...(story.tags || []),
         ...(aiTags || [])
-      ])].slice(0, 8); // Limit to 8 tags total
-      
+      ])].slice(0, 8);
+
+      // Fallback: extract readable sentences from article text
+      const fallbackSummary = contentForAI
+        ? extractReadableSummary(contentForAI, story.title)
+        : story.summary;
+
       return {
         ...story,
-        summary: enhancedSummary || story.summary,
+        summary: enhancedSummary || fallbackSummary || story.summary,
+        content: contentForAI || story.content || null,
         tags: combinedTags,
-        funny_score: Math.round((aiFunnyScore + (story.funny_score || 50)) / 2), // Average AI and initial score
+        funny_score: Math.round((aiFunnyScore + (story.funny_score || 50)) / 2),
         metadata: {
           ...story.metadata,
           ai_enhanced: true,
@@ -138,7 +149,7 @@ export class NewsStoryScraper {
       };
     } catch (error) {
       console.error('AI enhancement failed for story:', story.title, error);
-      return story; // Return original story if AI enhancement fails
+      return story;
     }
   }
 

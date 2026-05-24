@@ -69,12 +69,19 @@ function ShareButton({ story }: { story: NewsStory }) {
   );
 }
 
+function isSummaryJustTitle(summary: string | null | undefined, title: string): boolean {
+  if (!summary) return true;
+  return summary.trim().toLowerCase() === title.trim().toLowerCase() || summary.trim().length < 80;
+}
+
 export default function StoryPage({ params }: StoryPageProps) {
   const [story, setStory] = useState<NewsStory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upvoted, setUpvoted] = useState(false);
   const [localUpvotes, setLocalUpvotes] = useState(0);
+  const [displaySummary, setDisplaySummary] = useState<string | null>(null);
+  const [contentLoading, setContentLoading] = useState(false);
 
   useEffect(() => {
     async function fetchStory() {
@@ -82,8 +89,24 @@ export default function StoryPage({ params }: StoryPageProps) {
         const response = await fetch(`/api/stories/${params.id}`);
         const result = await response.json();
         if (result.success && result.data) {
-          setStory(result.data);
-          setLocalUpvotes(result.data.upvotes ?? 0);
+          const s = result.data;
+          setStory(s);
+          setLocalUpvotes(s.upvotes ?? 0);
+          setDisplaySummary(s.summary || s.content || null);
+
+          // If summary is just the title or too short, fetch real content
+          if (isSummaryJustTitle(s.summary, s.title)) {
+            setContentLoading(true);
+            fetch(`/api/stories/${params.id}/content`)
+              .then(r => r.json())
+              .then(contentResult => {
+                if (contentResult.success) {
+                  setDisplaySummary(contentResult.summary || contentResult.content?.slice(0, 600) || null);
+                }
+              })
+              .catch(() => {})
+              .finally(() => setContentLoading(false));
+          }
         } else {
           setError(result.error || 'Story not found');
         }
@@ -153,7 +176,7 @@ export default function StoryPage({ params }: StoryPageProps) {
   const publishedAgo = story.published_at
     ? (() => { try { return formatDistanceToNow(new Date(story.published_at), { addSuffix: true }); } catch { return null; } })()
     : null;
-  const readTime = estimateReadingTime(story.summary ?? story.content);
+  const readTime = estimateReadingTime(displaySummary ?? story.content);
 
   const funnyLabel =
     (story.funny_score ?? 0) >= 90 ? 'Absolutely Hilarious' :
@@ -176,6 +199,19 @@ export default function StoryPage({ params }: StoryPageProps) {
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm overflow-hidden mb-6">
             {/* Color accent top bar */}
             <div className="h-1 w-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400" />
+
+            {/* Hero image */}
+            {story.image_url && (
+              <div className="relative w-full overflow-hidden bg-muted/30" style={{ maxHeight: '420px' }}>
+                <img
+                  src={story.image_url}
+                  alt={story.title}
+                  className="w-full object-cover"
+                  style={{ maxHeight: '420px' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
 
             <div className="p-6 md:p-8">
               {/* Meta row */}
@@ -223,10 +259,18 @@ export default function StoryPage({ params }: StoryPageProps) {
               </div>
 
               {/* Content */}
-              <div className="prose prose-sm dark:prose-invert max-w-none mb-6">
-                <p className="text-foreground text-base leading-relaxed">
-                  {story.summary || story.content || 'No summary available for this story.'}
-                </p>
+              <div className="prose dark:prose-invert max-w-none mb-6">
+                {contentLoading ? (
+                  <div className="space-y-2">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className={`h-4 bg-muted rounded animate-pulse ${i === 3 ? 'w-2/3' : 'w-full'}`} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-foreground text-[1.05rem] leading-[1.8] tracking-[-0.01em]">
+                    {displaySummary || 'No summary available for this story.'}
+                  </p>
+                )}
               </div>
 
               {/* Action bar */}

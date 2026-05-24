@@ -10,20 +10,29 @@ interface GeminiResponse {
 
 export class GeminiClient {
   private apiKey: string;
-  private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+  private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
   }
 
-  async generateNewsStoryAnalysis(title: string, source: string, tags: string[]): Promise<string | null> {
+  async generateNewsStoryAnalysis(title: string, source: string, tags: string[], articleContent?: string): Promise<string | null> {
     if (!this.apiKey) {
       console.warn('Gemini API key not available');
       return null;
     }
 
     try {
-      const prompt = `Write a witty and engaging analysis (2-3 sentences max) for this news story: "${title}" from ${source} with these tags: ${tags.join(', ')}. Make it humorous and appealing to someone who enjoys absurd, satirical, or bizarre news. Focus on what makes this story funny or interesting.`;
+      const contentSection = articleContent
+        ? `\n\nArticle content:\n${articleContent.slice(0, 1500)}`
+        : '';
+
+      const prompt = `You are a witty news writer for a funny news site. Based ONLY on the actual content below, write a 3-4 sentence summary that is genuinely funny and captures what actually happened. Do not make anything up — stick strictly to the real facts from the article, but present them in an entertaining, dry-humored way. No emojis, no lists, just flowing prose.
+
+Title: "${title}"
+Source: ${source}${contentSection}
+
+Write the summary now:`;
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: 'POST',
@@ -37,10 +46,10 @@ export class GeminiClient {
             }]
           }],
           generationConfig: {
-            temperature: 0.8,
+            temperature: 0.75,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 150,
+            maxOutputTokens: 350,
           }
         })
       });
