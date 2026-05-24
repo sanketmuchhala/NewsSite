@@ -38,13 +38,13 @@ const MOOD_FILTERS = [
   { id: 'all',      label: 'All Stories',  tags: [],                                                                                               sources: [] },
   { id: 'wtf',      label: 'WTF',          tags: ['wtf','bizarre','absurd','florida-man','nottheonion','facepalm','tifu'],                         sources: [] },
   { id: 'satire',   label: 'Satire',       tags: ['satire','onion','babylon-bee','clickhole','reductress','beaverton','daily-mash','shovel'],      sources: ['onion','babylon','clickhole','beaverton','mash','shovel','whispers','reductress','duffel','hard times'] },
-  { id: 'tech',     label: '🖥 Tech',       tags: ['tech','technology','ai','startup','crypto','big-tech','programmer','gizmodo','verge','wired'], sources: ['verge','techcrunch','gizmodo','wired','ars technica','programmer'] },
-  { id: 'weed',     label: '🌿 420',        tags: ['weed','420','cannabis','marijuana','stoner','trees','ents'],                                    sources: ['merry jane','high times','trees','r/weed','r/ents'] },
-  { id: 'animals',  label: '🐊 Animals',    tags: ['animals','bird','bear','alligator','snake','shark','goat','chicken','cow','monkey','raccoon','squirrel','deer','cat','dog'], sources: [] },
-  { id: 'science',  label: '🔬 Science',    tags: ['science','space','climate','scientists','research','discovery'],                               sources: [] },
-  { id: 'politics', label: '🏛 Politics',   tags: ['politics','government','election','politician','congress','senate','democrat','republican'],    sources: [] },
-  { id: 'law',      label: '⚖️ Law & Crime', tags: ['law','crime','lawsuit','arrested','court','police'],                                           sources: [] },
-  { id: 'viral',    label: '🔥 Viral',      tags: ['viral','social-media','trending'],                                                              sources: [], minUpvotes: 500 },
+  { id: 'tech',     label: 'Tech',         tags: ['tech','technology','ai','startup','crypto','big-tech','programmer','gizmodo','verge','wired'], sources: ['verge','techcrunch','gizmodo','wired','ars technica','programmer'] },
+  { id: 'weed',     label: '420',          tags: ['weed','420','cannabis','marijuana','stoner','trees','ents'],                                    sources: ['merry jane','high times','trees','r/weed','r/ents'] },
+  { id: 'animals',  label: 'Animals',      tags: ['animals','bird','bear','alligator','snake','shark','goat','chicken','cow','monkey','raccoon','squirrel','deer','cat','dog'], sources: [] },
+  { id: 'science',  label: 'Science',      tags: ['science','space','climate','scientists','research','discovery'],                               sources: [] },
+  { id: 'politics', label: 'Politics',     tags: ['politics','government','election','politician','congress','senate','democrat','republican'],    sources: [] },
+  { id: 'law',      label: 'Law & Crime',  tags: ['law','crime','lawsuit','arrested','court','police'],                                           sources: [] },
+  { id: 'viral',    label: 'Viral',        tags: ['viral','social-media','trending'],                                                              sources: [], minUpvotes: 500 },
 ];
 
 const SOURCE_FILTERS = [
