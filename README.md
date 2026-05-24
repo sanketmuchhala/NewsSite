@@ -2,12 +2,6 @@
 
 A modern, AI-powered news aggregation platform that discovers and curates the funniest, most absurd news stories from across the internet. Built with Next.js 14 and featuring an interactive network graph visualization of story relationships.
 
-# Demo
-
-<img width="1680" height="1050" alt="Screenshot 2025-09-14 at 4 54 05 PM" src="https://github.com/user-attachments/assets/9d8f44fa-0252-4e64-a362-f2edde25fffe" />
-<img width="1680" height="1050" alt="Screenshot 2025-09-14 at 4 54 16 PM" src="https://github.com/user-attachments/assets/7da03af1-76e2-4ce7-a939-45f1e922a779" />
-<img width="1680" height="1050" alt="Screenshot 2025-09-14 at 4 54 26 PM" src="https://github.com/user-attachments/assets/b5584bd1-88e5-4439-9045-c3a937fffb15" />
-
 ## Features
 
 ### Core Functionality
