@@ -4,6 +4,7 @@ import { RssScraper } from './rss';
 import { HackerNewsScraper } from './hackernews';
 import { NewsStory } from '../types';
 import { adminUpsertStory, adminCreateFeedRun, adminFinishFeedRun } from '../firebase/firestore-admin';
+import { runRelationshipAgent } from '../ai/relationship-agent';
 import { llmClient } from '../ai/llm';
 import { fetchArticleText, extractReadableSummary } from './article-extractor';
 
@@ -101,6 +102,7 @@ export class NewsStoryScraper {
 
     const results = { success: 0, failed: 0, total: 0, aiEnhanced: 0 };
     const errors: string[] = [];
+    const newlySavedSlugs: string[] = [];
 
     try {
       const rssLimit = Math.max(60, maxPerSource * 4);
@@ -134,6 +136,7 @@ export class NewsStoryScraper {
               if (saved.success) {
                 results.success++;
                 if (final.ai_summary) results.aiEnhanced++;
+                newlySavedSlugs.push(docId);
               } else {
                 results.failed++;
                 errors.push(`upsert failed: ${docId}`);
@@ -145,6 +148,14 @@ export class NewsStoryScraper {
           }),
         );
         if (i + batchSize < unique.length) await this.delay(250);
+      }
+
+      // ── Relationship Agent pass ────────────────────────────────────────────
+      try {
+        await runRelationshipAgent(newlySavedSlugs);
+      } catch (relErr: any) {
+        console.warn('[RelationshipAgent] Non-fatal error:', relErr?.message);
+        errors.push(`relationship-agent: ${relErr?.message}`);
       }
 
       // ── Finish FeedRun (success) ────────────────────────────────────────────

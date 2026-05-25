@@ -5,6 +5,7 @@ import { NewsStory, FeedRun, ContentStatus, SourceType } from '@/types';
 function storiesCol() { return getAdminDb().collection('stories'); }
 function storyDoc(id: string) { return getAdminDb().collection('stories').doc(id); }
 function feedRunsCol() { return getAdminDb().collection('feed_runs'); }
+function relationshipsCol() { return getAdminDb().collection('story_relationships'); }
 
 // ── Timestamp helper ─────────────────────────────────────────────────────────
 function toDate(v: unknown): Date | null {
@@ -236,5 +237,28 @@ export async function adminFinishFeedRun(
   } catch (error) {
     console.error('Admin finishFeedRun error:', error);
     return { success: false, error: 'Failed to finish feed run' };
+  }
+}
+
+// ── Story Relationships ───────────────────────────────────────────────────────
+
+export async function adminGetRelationships(
+  limit = 500
+): Promise<{ success: boolean; data?: { source_id: string; target_id: string; relationship_type: string; strength: number }[]; error?: string }> {
+  try {
+    const snap = await relationshipsCol().orderBy('strength', 'desc').limit(limit).get();
+    const data = snap.docs.map(d => {
+      const r = d.data();
+      return {
+        source_id:         r.source_id         as string,
+        target_id:         r.target_id         as string,
+        relationship_type: r.relationship_type as string,
+        strength:          r.strength          as number,
+      };
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error('Admin getRelationships error:', error);
+    return { success: false, error: 'Failed to fetch relationships' };
   }
 }
