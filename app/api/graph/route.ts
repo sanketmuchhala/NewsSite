@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminGetStories } from '@/lib/firebase/firestore-admin';
+
+export const dynamic = 'force-dynamic';
 import { NewsStory } from '@/types';
 
 export async function GET() {
