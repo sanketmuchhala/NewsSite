@@ -1,11 +1,12 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAdminDb } from './admin';
-import { NewsStory, FeedRun, ContentStatus, SourceType } from '../types';
+import { NewsStory, FeedRun, Digest, ContentStatus, SourceType } from '../types';
 
 function storiesCol() { return getAdminDb().collection('stories'); }
 function storyDoc(id: string) { return getAdminDb().collection('stories').doc(id); }
 function feedRunsCol() { return getAdminDb().collection('feed_runs'); }
 function relationshipsCol() { return getAdminDb().collection('story_relationships'); }
+function digestsCol() { return getAdminDb().collection('digests'); }
 
 // ── Timestamp helper ─────────────────────────────────────────────────────────
 function toDate(v: unknown): Date | null {
@@ -303,5 +304,46 @@ export async function adminGetFeedRuns(
   } catch (error) {
     console.error('Admin getFeedRuns error:', error);
     return { success: false, error: 'Failed to fetch feed runs' };
+  }
+}
+
+// ── Digest helpers ────────────────────────────────────────────────────────────
+
+export async function adminSetDigest(
+  date: string,
+  digest: Digest,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await digestsCol().doc(date).set(
+      { ...digest, generated_at: FieldValue.serverTimestamp() },
+      { merge: false }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Admin setDigest error:', error);
+    return { success: false, error: 'Failed to save digest' };
+  }
+}
+
+export async function adminGetLatestDigest(): Promise<{ success: boolean; data?: Digest & { date: string }; error?: string }> {
+  try {
+    const snap = await digestsCol().orderBy('date', 'desc').limit(1).get();
+    if (snap.empty) return { success: false, error: 'No digest found' };
+    const d = snap.docs[0].data();
+    return {
+      success: true,
+      data: {
+        date:         snap.docs[0].id,
+        headline:     d.headline    as string,
+        content:      d.content     as string,
+        story_slugs:  (d.story_slugs  as string[]) ?? [],
+        top_tags:     (d.top_tags     as string[]) ?? [],
+        model:        d.model       as string,
+        generated_at: toDate(d.generated_at),
+      },
+    };
+  } catch (error) {
+    console.error('Admin getLatestDigest error:', error);
+    return { success: false, error: 'Failed to fetch digest' };
   }
 }

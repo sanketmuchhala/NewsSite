@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { NewsStory, PaginatedResponse } from '@/types';
+import { NewsStory, Digest, PaginatedResponse } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -229,6 +229,52 @@ function Skeleton() {
   );
 }
 
+// ─── Daily digest card ───────────────────────────────────────
+
+function DigestCard({ digest, stories }: { digest: Digest; stories: NewsStory[] }) {
+  const storyMap = new Map(stories.map(s => [s.slug, s]));
+  const linkedStories = digest.story_slugs
+    .map(slug => storyMap.get(slug))
+    .filter((s): s is NewsStory => !!s)
+    .slice(0, 4);
+
+  return (
+    <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] overflow-hidden mb-14">
+      <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-amber-400/15">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+        </span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Today&apos;s Digest</span>
+        <span className="text-[10px] text-muted-foreground/50 font-mono">{digest.date}</span>
+        <div className="h-px flex-1 bg-amber-400/15" />
+        <span className="text-[9px] font-mono text-muted-foreground/40 uppercase tracking-wider">AI-generated</span>
+      </div>
+      <div className="px-6 py-5">
+        <h3 className="font-display font-bold text-lg text-foreground mb-3 leading-snug">
+          {digest.headline}
+        </h3>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+          {digest.content}
+        </p>
+        {linkedStories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {linkedStories.map(s => (
+              <Link
+                key={s.slug}
+                href={`/story/${s.slug}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 border border-amber-400/20 transition-colors"
+              >
+                {s.title.length > 48 ? s.title.slice(0, 48) + '…' : s.title}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page content ────────────────────────────────────────
 
 const PIPELINE_STEPS = [
@@ -293,6 +339,7 @@ const PHASE2_FEATURES = [
 
 function LandingContent() {
   const [stories, setStories] = useState<NewsStory[]>([]);
+  const [digest, setDigest] = useState<Digest | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
   const [stats, setStats] = useState({ total: 0, today: 0, engagement: 0 });
@@ -302,7 +349,7 @@ function LandingContent() {
   const engageCount = useCountUp(stats.engagement);
 
   useEffect(() => {
-    fetch('/api/stories?pageSize=100')
+    const storiesP = fetch('/api/stories?pageSize=100')
       .then(r => r.json())
       .then((res: PaginatedResponse<NewsStory>) => {
         if (res.success && res.data) {
@@ -311,8 +358,16 @@ function LandingContent() {
           setStats({ total, today: Math.max(1, Math.floor(total * 0.1)), engagement: Math.min(97, 65 + (total % 32)) });
         }
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(console.error);
+
+    const digestP = fetch('/api/digest')
+      .then(r => r.json())
+      .then((res: { success: boolean; data?: Digest }) => {
+        if (res.success && res.data) setDigest(res.data);
+      })
+      .catch(() => {/* digest is optional */});
+
+    Promise.all([storiesP, digestP]).finally(() => setLoading(false));
   }, []);
 
   const CATEGORIES = ['All', 'WTF', 'Animals', 'Satire', 'Science', 'Politics', 'Tech'];
@@ -476,6 +531,8 @@ function LandingContent() {
         <div className="container-responsive">
           {loading ? <Skeleton /> : (
             <>
+              {digest && <DigestCard digest={digest} stories={stories} />}
+
               {featured && (
                 <div className="mb-14">
                   <div className="flex items-center gap-3 mb-5">

@@ -47,6 +47,16 @@ export type NewsStory = {
   updated_at: Date | null;
 };
 
+export type Digest = {
+  date: string;           // YYYY-MM-DD (also the Firestore doc ID)
+  headline: string;
+  content: string;
+  story_slugs: string[];
+  top_tags: string[];
+  model: string;
+  generated_at: Date | null;
+};
+
 export type FeedRun = {
   id?: string;
   started_at: Date | null;

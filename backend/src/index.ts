@@ -4,6 +4,7 @@ import cors from 'cors';
 import storiesRouter from './routes/stories';
 import scrapeRouter from './routes/scrape';
 import graphRouter from './routes/graph';
+import digestRouter from './routes/digest';
 import { startCronJobs } from './cron';
 
 const app = express();
@@ -41,6 +42,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/stories', storiesRouter);
 app.use('/api/scrape', scrapeRouter);
 app.use('/api/graph', graphRouter);
+app.use('/api/digest', digestRouter);
 
 // ── 404 fallback ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
