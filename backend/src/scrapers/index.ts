@@ -79,12 +79,10 @@ export class NewsStoryScraper {
         content: contentForAI || story.content || null,
         tags: combinedTags,
         funny_score: Math.round((aiFunnyScore + (story.funny_score || 50)) / 2),
-        metadata: {
-          ...story.metadata,
-          ai_enhanced: true,
-          ai_funny_score: aiFunnyScore,
-          enhanced_at: new Date().toISOString(),
-        },
+        ai_summary: true,
+        ai_model: 'gemini-2.0-flash',
+        ai_version: 1,
+        needs_reprocess: false,
       };
     } catch (error) {
       console.error('AI enhancement failed:', story.title, error);

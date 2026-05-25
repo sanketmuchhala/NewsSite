@@ -456,7 +456,7 @@ export default function AdminDashboardPage() {
               </div>
               <div className="space-y-4">
                 {recentStories.map((story) => (
-                  <div key={story.id} className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div key={story.slug ?? story.url} className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-foreground line-clamp-2 mb-2">
                         {story.title}

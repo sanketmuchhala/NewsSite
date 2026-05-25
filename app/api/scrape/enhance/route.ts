@@ -37,14 +37,13 @@ export async function POST(request: NextRequest) {
         summary = extractReadableSummary(articleText, story.title);
       }
 
-      await adminUpsertStory(story.slug!, {
+      await adminUpsertStory(story.slug, {
         content: articleText,
         summary: summary || story.summary,
-        metadata: {
-          ...story.metadata,
-          content_fetched_at: new Date().toISOString(),
-          ai_enhanced: !!summary,
-        },
+        ai_summary: !!summary,
+        ai_model: summary ? 'gemini-2.0-flash' : null,
+        ai_version: 1,
+        needs_reprocess: false,
       });
       stats.updated++;
 

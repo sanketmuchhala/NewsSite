@@ -228,13 +228,12 @@ export default function DiscoverPage() {
             const src = (s.source ?? '').toLowerCase();
             const srcType = (s.source_type ?? '').toLowerCase();
             // match by tag OR by source name OR by metadata feed_category
-            const feedCat = (s.metadata as any)?.feed_category ?? '';
             return (
               mood.tags.some(t => st.includes(t)) ||
               mood.sources.some(ms => src.includes(ms) || srcType.includes(ms)) ||
-              (activeMood === 'weed'   && feedCat === 'weed') ||
-              (activeMood === 'tech'   && (feedCat === 'tech'   || srcType === 'api')) ||
-              (activeMood === 'satire' && feedCat === 'satire')
+              (activeMood === 'weed'   && s.category === 'weed') ||
+              (activeMood === 'tech'   && (s.category === 'tech' || srcType === 'hackernews')) ||
+              (activeMood === 'satire' && s.category === 'satire')
             );
           });
         }

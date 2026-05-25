@@ -294,7 +294,7 @@ export async function getGraphData(): Promise<{
     
     return {
       success: true,
-      data: { stories: mockStories as NewsStory[], relationships: mockRelationships }
+      data: { stories: mockStories as unknown as NewsStory[], relationships: mockRelationships }
     };
   }
 

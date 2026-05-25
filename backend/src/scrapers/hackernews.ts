@@ -83,20 +83,36 @@ export class HackerNewsScraper {
       : hit.title as string;
 
     return {
+      slug: '',   // filled in by scrapeAll via urlToSlug
       title: hit.title as string,
       url: hit.url as string,
       source: 'Hacker News',
-      source_type: 'api',
+      source_type: 'hackernews',
+      category,
+      feed_url: null,
+      rss_guid: null,
+      reddit_id: null,
+      reddit_permalink: null,
+      hn_id: (hit.objectID as string) || null,
       published_at: new Date(hit.created_at),
       summary,
       content: null,
-      author: hit.author,
+      author: (hit.author as string) || null,
       funny_score,
+      quality_score: 0,
+      ai_summary: false,
+      ai_model: null,
+      ai_version: 0,
+      needs_reprocess: false,
       upvotes: pts,
+      downvotes: 0,
       view_count: 0,
+      content_status: 'unknown' as const,
       tags: [...new Set(tags)],
       image_url: null,
-      metadata: { hn_id: hit.objectID, comments: hit.num_comments, hn_query: query },
+      scraped_at: null,
+      created_at: null,
+      updated_at: null,
     };
   }
 }

@@ -254,28 +254,36 @@ export class RssScraper {
     const image_url = this.extractImage(item) || undefined;
 
     return {
+      slug: '',   // filled in by scrapeAll via urlToSlug
       title,
       url: realUrl,
       source,
       source_type: 'rss',
+      category,
+      feed_url: feedUrl,
+      rss_guid: (item.guid || item.id || null) as string | null,
+      reddit_id: null,
+      reddit_permalink: null,
+      hn_id: null,
       published_at: item.pubDate ? new Date(item.pubDate) : new Date(),
       summary,
       content: null,
-      author: item['dc:creator'] || item.creator || item.author || undefined,
+      author: (item['dc:creator'] || item.creator || item.author || null) as string | null,
       funny_score,
+      quality_score: 0,
+      ai_summary: false,
+      ai_model: null,
+      ai_version: 0,
+      needs_reprocess: false,
       upvotes: 0,
+      downvotes: 0,
       view_count: 0,
+      content_status: 'unknown' as const,
       tags,
       image_url: image_url ?? null,
-      metadata: {
-        rss_guid: item.guid || item.id,
-        feed_url: feedUrl,
-        feed_title: feed.title,
-        feed_category: category,
-        ...(isReddit && realUrl !== item.link ? { reddit_thread_url: item.link } : {}),
-        categories: item.categories || [],
-        pub_date_original: item.pubDate,
-      },
+      scraped_at: null,
+      created_at: null,
+      updated_at: null,
     };
   }
 

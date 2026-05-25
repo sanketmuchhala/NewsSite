@@ -40,11 +40,10 @@ export async function GET(
     await adminUpsertStory(params.id, {
       content: articleText,
       summary: summary || story.summary,
-      metadata: {
-        ...story.metadata,
-        content_fetched_at: new Date().toISOString(),
-        ai_enhanced: !!summary,
-      },
+      ai_summary: !!summary,
+      ai_model: summary ? 'gemini-2.0-flash' : null,
+      ai_version: 1,
+      needs_reprocess: false,
     });
 
     return NextResponse.json({ success: true, content: articleText, summary, cached: false });

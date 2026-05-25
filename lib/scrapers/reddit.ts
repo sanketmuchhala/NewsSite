@@ -120,28 +120,36 @@ export class RedditScraper {
     }
     
     return {
+      slug: '',   // filled in by scrapeAll via urlToSlug
       title: postData.title,
       url: sourceUrl,
       source: `Reddit - r/${subreddit}`,
       source_type: 'reddit' as const,
+      category: 'weird',
+      feed_url: null,
+      rss_guid: null,
+      reddit_id: (postData.id as string) || null,
+      reddit_permalink: (postData.permalink as string) || null,
+      hn_id: null,
       published_at: new Date(postData.created_utc * 1000),
       summary: summary || postData.title,
-      content: postData.selftext,
-      author: postData.author,
+      content: postData.selftext || null,
+      author: postData.author || null,
       funny_score: this.calculateInitialFunnyScore(postData, subreddit),
+      quality_score: 0,
+      ai_summary: false,
+      ai_model: null,
+      ai_version: 0,
+      needs_reprocess: false,
       upvotes: postData.score || 0,
-      view_count: 0, // Reddit doesn't provide view count
+      downvotes: 0,
+      view_count: 0,
+      content_status: 'unknown' as const,
       tags: tags,
-      image_url: this.extractImageUrl(postData),
-      metadata: {
-        reddit_id: postData.id,
-        reddit_permalink: postData.permalink,
-        num_comments: postData.num_comments,
-        created_utc: postData.created_utc,
-        subreddit: subreddit,
-        gilded: postData.gilded,
-        awards: postData.total_awards_received
-      }
+      image_url: this.extractImageUrl(postData) ?? null,
+      scraped_at: null,
+      created_at: null,
+      updated_at: null,
     };
   }
   

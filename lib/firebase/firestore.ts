@@ -33,32 +33,48 @@ export const votesRef    = () => collection(db, 'votes');
 
 // ─── Converters ───────────────────────────────────────────────
 
+function toDate(v: unknown): Date | null {
+  if (!v) return null;
+  if (v instanceof Timestamp) return v.toDate();
+  if (v instanceof Date) return v;
+  return null;
+}
+
 function toNewsStory(id: string, data: Record<string, unknown>): NewsStory {
+  const meta = (data.metadata as Record<string, unknown>) ?? {};
   return {
-    id: parseInt(id, 10) || undefined,
-    title:       data.title      as string,
-    url:         data.url        as string,
-    source:      data.source     as string,
-    source_type: data.source_type as NewsStory['source_type'],
-    summary:     data.summary    as string | null,
-    content:     data.content    as string | null,
-    author:      data.author     as string | null,
-    funny_score: data.funny_score as number | undefined,
-    tags:        (data.tags as string[]) || [],
-    upvotes:     data.upvotes    as number | undefined,
-    downvotes:   data.downvotes  as number | undefined,
-    view_count:  data.view_count as number | undefined,
-    image_url:   data.image_url  as string | null,
-    metadata:    data.metadata,
+    slug: id,
+    title:       (data.title      as string) ?? '',
+    url:         (data.url        as string) ?? '',
+    source:      (data.source     as string) ?? '',
+    source_type: (data.source_type as NewsStory['source_type']) ?? 'rss',
+    category:    (data.category   as string) ?? (meta.feed_category as string) ?? 'weird',
+    feed_url:    (data.feed_url   as string | null) ?? (meta.feed_url as string | null) ?? null,
+    rss_guid:    (data.rss_guid   as string | null) ?? (meta.rss_guid as string | null) ?? null,
+    reddit_id:   (data.reddit_id  as string | null) ?? (meta.reddit_id as string | null) ?? null,
+    reddit_permalink: (data.reddit_permalink as string | null) ?? (meta.reddit_permalink as string | null) ?? null,
+    hn_id:       (data.hn_id      as string | null) ?? (meta.hn_id as string | null) ?? null,
+    summary:     (data.summary    as string | null) ?? null,
+    content:     (data.content    as string | null) ?? null,
+    author:      (data.author     as string | null) ?? null,
+    funny_score: (data.funny_score as number) ?? 50,
+    quality_score: (data.quality_score as number) ?? 0,
+    ai_summary:  (data.ai_summary as boolean) ?? false,
+    ai_model:    (data.ai_model   as string | null) ?? null,
+    ai_version:  (data.ai_version as number) ?? 0,
+    needs_reprocess: (data.needs_reprocess as boolean) ?? false,
+    tags:        (data.tags as string[]) ?? [],
+    upvotes:     (data.upvotes    as number) ?? 0,
+    downvotes:   (data.downvotes  as number) ?? 0,
+    view_count:  (data.view_count as number) ?? 0,
+    image_url:   (data.image_url  as string | null) ?? null,
+    content_status: (data.content_status as NewsStory['content_status']) ?? 'unknown',
     published_at: data.published_at instanceof Timestamp
       ? data.published_at.toDate().toISOString()
-      : (data.published_at as string | null),
-    scraped_at: data.scraped_at instanceof Timestamp
-      ? data.scraped_at.toDate()
-      : undefined,
-    created_at: data.created_at instanceof Timestamp
-      ? data.created_at.toDate()
-      : undefined,
+      : (data.published_at as string | null) ?? null,
+    scraped_at:  toDate(data.scraped_at),
+    created_at:  toDate(data.created_at),
+    updated_at:  toDate(data.updated_at),
   };
 }
 
@@ -96,7 +112,7 @@ export async function getStoryById(
 }
 
 export async function createStory(
-  story: Omit<NewsStory, 'id' | 'created_at' | 'updated_at' | 'scraped_at'>
+  story: Omit<NewsStory, 'created_at' | 'updated_at' | 'scraped_at'>
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const ref = await addDoc(storiesRef(), {

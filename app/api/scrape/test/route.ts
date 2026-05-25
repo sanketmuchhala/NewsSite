@@ -33,7 +33,7 @@ export async function POST() {
         title: s.title,
         source: s.source,
         tags: s.tags,
-        category: (s.metadata as any)?.feed_category,
+        category: s.category,
         funny_score: s.funny_score,
       })),
     });

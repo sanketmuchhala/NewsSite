@@ -1,39 +1,81 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAdminDb } from './admin';
-import { NewsStory } from '@/types';
+import { NewsStory, FeedRun, ContentStatus, SourceType } from '@/types';
 
 function storiesCol() { return getAdminDb().collection('stories'); }
 function storyDoc(id: string) { return getAdminDb().collection('stories').doc(id); }
+function feedRunsCol() { return getAdminDb().collection('feed_runs'); }
 
-function toNewsStory(id: string, data: FirebaseFirestore.DocumentData): NewsStory {
+// ── Timestamp helper ─────────────────────────────────────────────────────────
+function toDate(v: unknown): Date | null {
+  if (!v) return null;
+  if (v instanceof Timestamp) return v.toDate();
+  if (v instanceof Date) return v;
+  return null;
+}
+
+// ── Document → NewsStory ─────────────────────────────────────────────────────
+//
+// Reads flat fields first; falls back to the legacy `metadata` blob for
+// documents that were written before the schema redesign.
+//
+function toNewsStory(id: string, d: FirebaseFirestore.DocumentData): NewsStory {
+  const meta = (d.metadata as Record<string, unknown>) ?? {};
+
   return {
-    id: parseInt(id, 10) || undefined,
     slug: id,
-    title:        data.title       as string,
-    url:          data.url         as string,
-    source:       data.source      as string,
-    source_type:  data.source_type as NewsStory['source_type'],
-    summary:      data.summary     as string | null,
-    content:      data.content     as string | null,
-    author:       data.author      as string | null,
-    funny_score:  data.funny_score as number | undefined,
-    tags:         (data.tags as string[]) || [],
-    upvotes:      data.upvotes     as number | undefined,
-    downvotes:    data.downvotes   as number | undefined,
-    view_count:   data.view_count  as number | undefined,
-    image_url:    data.image_url   as string | null,
-    metadata:     data.metadata,
-    published_at: data.published_at instanceof Timestamp
-      ? data.published_at.toDate().toISOString()
-      : (data.published_at as string | null),
-    scraped_at: data.scraped_at instanceof Timestamp
-      ? data.scraped_at.toDate()
-      : undefined,
-    created_at: data.created_at instanceof Timestamp
-      ? data.created_at.toDate()
-      : undefined,
+
+    url:          (d.url          as string)  ?? '',
+    title:        (d.title        as string)  ?? '',
+    summary:      (d.summary      as string | null) ?? null,
+    content:      (d.content      as string | null) ?? null,
+    author:       (d.author       as string | null) ?? null,
+    image_url:    (d.image_url    as string | null) ?? null,
+
+    source:       (d.source       as string)  ?? '',
+    source_type:  (d.source_type  as SourceType) ?? 'rss',
+    category:     (d.category     as string)  ?? (meta.feed_category as string) ?? 'weird',
+    feed_url:     (d.feed_url     as string | null) ?? (meta.feed_url as string | null) ?? null,
+    rss_guid:     (d.rss_guid     as string | null) ?? (meta.rss_guid as string | null) ?? null,
+    reddit_id:    (d.reddit_id    as string | null) ?? (meta.reddit_id as string | null) ?? null,
+    reddit_permalink: (d.reddit_permalink as string | null) ?? (meta.reddit_permalink as string | null) ?? null,
+    hn_id:        (d.hn_id        as string | null) ?? (meta.hn_id as string | null) ?? null,
+
+    tags:         (d.tags as string[]) ?? [],
+    funny_score:  (d.funny_score  as number)  ?? 50,
+    quality_score:(d.quality_score as number) ?? 0,
+    ai_summary:   (d.ai_summary   as boolean) ?? !!(meta.ai_enhanced),
+    ai_model:     (d.ai_model     as string | null) ?? null,
+    ai_version:   (d.ai_version   as number)  ?? 0,
+    needs_reprocess: (d.needs_reprocess as boolean) ?? false,
+
+    upvotes:      (d.upvotes      as number)  ?? 0,
+    downvotes:    (d.downvotes    as number)  ?? 0,
+    view_count:   (d.view_count   as number)  ?? 0,
+
+    content_status: (d.content_status as ContentStatus) ?? 'unknown',
+
+    published_at: d.published_at instanceof Timestamp
+      ? d.published_at.toDate().toISOString()
+      : (d.published_at as string | null) ?? null,
+    scraped_at:  toDate(d.scraped_at),
+    created_at:  toDate(d.created_at),
+    updated_at:  toDate(d.updated_at),
   };
 }
+
+// ── Recursively strip undefined — Firestore throws on them ───────────────────
+function stripUndefined<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (v !== undefined) out[k] = stripUndefined(v);
+  }
+  return out as T;
+}
+
+// ── Read helpers ─────────────────────────────────────────────────────────────
 
 export async function adminGetStories(
   pageSize = 100,
@@ -61,34 +103,6 @@ export async function adminGetStoryById(
   }
 }
 
-/** Recursively strip undefined values — Firestore throws on them */
-function stripUndefined<T>(obj: T): T {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-    if (v !== undefined) out[k] = stripUndefined(v);
-  }
-  return out as T;
-}
-
-export async function adminUpsertStory(
-  id: string,
-  story: Partial<NewsStory>
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const clean = stripUndefined(story);
-    await storyDoc(id).set(
-      { ...clean, scraped_at: FieldValue.serverTimestamp(), updated_at: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    return { success: true };
-  } catch (error) {
-    console.error('Admin upsertStory error:', error);
-    return { success: false, error: 'Failed to upsert story' };
-  }
-}
-
 export async function adminGetStoriesBySource(
   sourceType: string,
   pageSize = 20
@@ -103,6 +117,60 @@ export async function adminGetStoriesBySource(
   } catch (error) {
     console.error('Admin getStoriesBySource error:', error);
     return { success: false, error: 'Failed to filter stories' };
+  }
+}
+
+export async function adminGetStoriesByCategory(
+  category: string,
+  pageSize = 20
+): Promise<{ success: boolean; data?: NewsStory[]; error?: string }> {
+  try {
+    const snap = await storiesCol()
+      .where('category', '==', category)
+      .orderBy('scraped_at', 'desc')
+      .limit(pageSize)
+      .get();
+    return { success: true, data: snap.docs.map(d => toNewsStory(d.id, d.data())) };
+  } catch (error) {
+    console.error('Admin getStoriesByCategory error:', error);
+    return { success: false, error: 'Failed to filter by category' };
+  }
+}
+
+export async function adminGetStoriesNeedingReprocess(
+  limit = 50
+): Promise<{ success: boolean; data?: NewsStory[]; error?: string }> {
+  try {
+    const snap = await storiesCol()
+      .where('needs_reprocess', '==', true)
+      .orderBy('scraped_at', 'desc')
+      .limit(limit)
+      .get();
+    return { success: true, data: snap.docs.map(d => toNewsStory(d.id, d.data())) };
+  } catch (error) {
+    console.error('Admin getStoriesNeedingReprocess error:', error);
+    return { success: false, error: 'Failed to fetch reprocess queue' };
+  }
+}
+
+// ── Write helpers ─────────────────────────────────────────────────────────────
+
+export async function adminUpsertStory(
+  id: string,
+  story: Partial<NewsStory>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Never persist the slug as a field — it IS the doc ID
+    const { slug: _slug, ...rest } = story as NewsStory & { slug?: string };
+    const clean = stripUndefined(rest);
+    await storyDoc(id).set(
+      { ...clean, scraped_at: FieldValue.serverTimestamp(), updated_at: FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Admin upsertStory error:', error);
+    return { success: false, error: 'Failed to upsert story' };
   }
 }
 
@@ -123,10 +191,50 @@ export async function adminIncrementVotes(
   delta: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await storyDoc(id).update({ upvotes: FieldValue.increment(delta) });
+    const field = delta > 0 ? 'upvotes' : 'downvotes';
+    await storyDoc(id).update({ [field]: FieldValue.increment(Math.abs(delta)) });
     return { success: true };
   } catch (error) {
     console.error('Admin incrementVotes error:', error);
     return { success: false, error: 'Failed to update votes' };
+  }
+}
+
+// ── FeedRun helpers ───────────────────────────────────────────────────────────
+
+export async function adminCreateFeedRun(): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const ref = await feedRunsCol().add({
+      started_at: FieldValue.serverTimestamp(),
+      finished_at: null,
+      status: 'running',
+      sources_tried: 0,
+      stories_found: 0,
+      stories_saved: 0,
+      stories_failed: 0,
+      ai_enhanced: 0,
+      errors: [],
+    });
+    return { success: true, id: ref.id };
+  } catch (error) {
+    console.error('Admin createFeedRun error:', error);
+    return { success: false, error: 'Failed to create feed run' };
+  }
+}
+
+export async function adminFinishFeedRun(
+  id: string,
+  stats: Partial<FeedRun>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { id: _id, started_at: _sa, ...rest } = stats as FeedRun;
+    await feedRunsCol().doc(id).update({
+      ...stripUndefined(rest),
+      finished_at: FieldValue.serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Admin finishFeedRun error:', error);
+    return { success: false, error: 'Failed to finish feed run' };
   }
 }

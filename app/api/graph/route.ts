@@ -46,8 +46,8 @@ function computeRelationships(stories: NewsStory[]) {
     for (let j = i + 1; j < stories.length; j++) {
       const a = stories[i];
       const b = stories[j];
-      const idA = a.id ?? a.url;
-      const idB = b.id ?? b.url;
+      const idA = a.slug ?? a.url;
+      const idB = b.slug ?? b.url;
       if (!idA || !idB) continue;
 
       let strength = 0;
