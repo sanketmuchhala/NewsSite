@@ -340,89 +340,104 @@ function Skeleton() {
 
 function PipelineVisualization() {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border/30 bg-zinc-950/40 p-4 md:p-7 shadow-2xl shadow-black/20">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.08)_1px,transparent_0)] [background-size:22px_22px] opacity-35" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" />
+    <div className="relative overflow-hidden rounded-xl border border-border/30 bg-zinc-950/50 p-4 shadow-2xl shadow-black/25 md:p-7">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.075)_1px,transparent_0)] [background-size:24px_24px] opacity-45" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/55 to-transparent" />
 
-      <div className="relative grid gap-4 lg:grid-cols-[0.85fr_1.15fr] lg:items-stretch">
-        <div className="rounded-lg border border-border/20 bg-background/45 p-5 md:p-6">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400 mb-4">
-            Live Data Flow
-          </p>
-          <div className="space-y-4">
-            {[
-              ['Inputs', 'RSS feeds, Reddit, Hacker News'],
-              ['Processing', 'Deduplication, LLM scoring, graph matching'],
-              ['Outputs', 'Stories, relationships, daily digests'],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-start gap-3 border-b border-border/15 pb-4 last:border-b-0 last:pb-0">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.8)]" />
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/35 mb-1">
-                    {label}
-                  </p>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 rounded-lg border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3">
-            <p className="text-[10px] font-mono leading-relaxed text-amber-100/70">
-              scrapeAll() {'>'} enhanceStory() {'>'} runRelationshipAgent() {'>'} runDigestAgent()
-            </p>
-          </div>
+      <div className="relative min-h-[900px] md:min-h-[540px]">
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 hidden h-full w-full md:block"
+          viewBox="0 0 1000 560"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="pipelineLine" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="rgba(251,191,36,0.08)" />
+              <stop offset="45%" stopColor="rgba(251,191,36,0.55)" />
+              <stop offset="100%" stopColor="rgba(251,191,36,0.08)" />
+            </linearGradient>
+            <filter id="packetGlow">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {[
+            'M120 112 C260 112 275 178 405 178',
+            'M405 178 C560 178 580 112 720 112',
+            'M405 178 C560 178 580 280 720 280',
+            'M720 280 C805 280 815 415 880 415',
+            'M720 112 C830 112 850 210 880 415',
+          ].map((path, i) => (
+            <g key={path}>
+              <path d={path} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
+              <path d={path} fill="none" stroke="url(#pipelineLine)" strokeWidth="2" strokeDasharray="10 12" className="workflow-trace" />
+              <circle r="7" fill="rgb(251,191,36)" filter="url(#packetGlow)" opacity="0.95">
+                <animateMotion dur="4.8s" begin={`${i * 0.7}s`} repeatCount="indefinite" path={path} />
+              </circle>
+            </g>
+          ))}
+        </svg>
+
+        <div className="absolute left-1/2 top-[2%] z-10 w-[min(230px,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-border/25 bg-background/80 p-4 backdrop-blur-md md:left-[4%] md:top-[6%] md:w-[230px] md:translate-x-0">
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/35">Inputs</p>
+          <h3 className="font-display text-xl font-bold text-foreground">Open Web Sources</h3>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">RSS feeds, Reddit threads, and Hacker News queries enter the queue.</p>
         </div>
 
-        <div className="relative rounded-lg border border-border/20 bg-background/35 p-4 md:p-6">
-          <div className="absolute left-[31px] top-10 bottom-10 w-px bg-gradient-to-b from-amber-400/15 via-amber-400/45 to-amber-400/15 md:left-[39px]" />
-          <span className="pipeline-dot left-[27px] md:left-[35px]" />
-          <span className="pipeline-dot left-[27px] md:left-[35px]" style={{ animationDelay: '1.2s' }} />
-
-          <div className="space-y-5">
-            {PIPELINE_STAGES.map((stage, index) => {
-              const Icon = stage.icon;
-              return (
-                <div key={stage.num} className="relative grid grid-cols-[34px_1fr] gap-4 md:grid-cols-[42px_1fr]">
-                  <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/25 bg-zinc-950 shadow-[0_0_22px_rgba(251,191,36,0.12)] md:h-12 md:w-12">
-                    <Icon className="h-4 w-4 text-amber-400 md:h-[18px] md:w-[18px]" />
-                    <span className="absolute -right-1 -top-1 rounded-full border border-border/40 bg-background px-1.5 py-0.5 text-[8px] font-bold text-muted-foreground/55">
-                      {stage.num}
-                    </span>
-                  </div>
-
-                  <div
-                    className="rounded-lg border border-border/25 bg-card/10 p-4 transition-all duration-200 hover:border-amber-400/25 hover:bg-card/20"
-                    style={{ animation: `heroIn 0.55s ${index * 0.08}s ease both` }}
-                  >
-                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h3 className="font-display text-lg font-bold text-foreground">{stage.name}</h3>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-amber-400/65">
-                          {stage.trigger}
-                        </p>
-                      </div>
-                      <span className="w-fit rounded border border-border/30 bg-muted/10 px-2 py-1 text-[9px] font-mono text-muted-foreground/55">
-                        {stage.metric}
-                      </span>
-                    </div>
-                    <p className="mb-4 text-sm leading-relaxed text-muted-foreground text-pretty">
-                      {stage.description}
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="rounded border border-border/20 bg-background/35 px-3 py-2">
-                        <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-muted-foreground/30">Reads</p>
-                        <p className="text-[11px] font-mono text-muted-foreground/65">{stage.source}</p>
-                      </div>
-                      <div className="rounded border border-amber-400/15 bg-amber-400/[0.035] px-3 py-2">
-                        <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-amber-400/45">Writes</p>
-                        <p className="text-[11px] font-mono text-amber-100/60">{stage.output}</p>
-                      </div>
-                    </div>
+        {PIPELINE_STAGES.map((stage, index) => {
+          const Icon = stage.icon;
+          const positions = [
+            'left-1/2 top-[21%] -translate-x-1/2 md:left-[34%] md:top-[16%] md:translate-x-0',
+            'left-1/2 top-[40%] -translate-x-1/2 md:left-[66%] md:top-[4%] md:translate-x-0',
+            'left-1/2 top-[59%] -translate-x-1/2 md:left-[66%] md:top-[34%] md:translate-x-0',
+            'left-1/2 top-[78%] -translate-x-1/2 md:left-[78%] md:top-[68%] md:translate-x-0',
+          ];
+          return (
+            <div
+              key={stage.num}
+              className={`absolute z-10 w-[min(235px,calc(100%-2rem))] rounded-lg border border-border/30 bg-background/85 p-4 shadow-xl shadow-black/20 backdrop-blur-md transition-all duration-200 hover:border-amber-400/35 hover:bg-background md:w-[235px] ${positions[index]}`}
+              style={{ animation: `heroIn 0.55s ${index * 0.08}s ease both` }}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/25 bg-amber-400/[0.06]">
+                    <Icon className="h-4 w-4 text-amber-400" />
+                  </span>
+                  <div>
+                    <p className="text-[8px] font-bold uppercase tracking-[0.18em] text-amber-400/60">{stage.num}</p>
+                    <h3 className="font-display text-base font-bold text-foreground leading-tight">{stage.name}</h3>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                <span className="rounded border border-border/30 bg-muted/10 px-2 py-1 text-[8px] font-mono text-muted-foreground/55">
+                  {stage.metric}
+                </span>
+              </div>
+              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">{stage.description}</p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="rounded border border-border/20 bg-muted/10 px-2 py-1 text-[9px] font-mono text-muted-foreground/55">
+                  {stage.trigger}
+                </span>
+                <span className="rounded border border-amber-400/15 bg-amber-400/[0.04] px-2 py-1 text-[9px] font-mono text-amber-100/60">
+                  {stage.output}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="absolute left-1/2 top-[17%] z-0 h-[62%] w-px -translate-x-1/2 bg-gradient-to-b from-amber-400/10 via-amber-400/45 to-amber-400/10 md:hidden" />
+        <span className="mobile-workflow-packet left-1/2 top-[17%] md:hidden" />
+        <span className="mobile-workflow-packet left-1/2 top-[17%] md:hidden" style={{ animationDelay: '1.4s' }} />
+
+        <div className="absolute bottom-4 left-4 right-4 z-10 rounded-lg border border-border/20 bg-background/70 px-4 py-3 backdrop-blur-md md:left-6 md:right-auto md:w-[360px]">
+          <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/65">
+            sources {'>'} scrape {'>'} score {'>'} relationships {'>'} digest
+          </p>
         </div>
       </div>
     </div>
@@ -493,16 +508,17 @@ function LandingContent() {
       {/* ═══════════════════════════════════════════════════════
           HERO
       ════════════════════════════════════════════════════════ */}
-      <section className="relative min-h-[calc(100vh-56px)] flex flex-col justify-center overflow-hidden bg-background">
-        {/* Dot grid */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border))_1px,transparent_0)] [background-size:26px_26px] opacity-35 pointer-events-none" />
-        {/* Ambient glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[450px] bg-amber-500/[0.03] rounded-full blur-3xl pointer-events-none" />
+      <div className="relative min-h-[calc(100svh-56px)] flex flex-col overflow-hidden bg-background">
+        <section className="relative flex flex-1 flex-col justify-center overflow-hidden">
+          {/* Dot grid */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border))_1px,transparent_0)] [background-size:26px_26px] opacity-35 pointer-events-none" />
+          {/* Ambient glow */}
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[450px] bg-amber-500/[0.03] rounded-full blur-3xl pointer-events-none" />
 
-        <div className="container-responsive relative z-10 py-20 md:py-28">
+        <div className="container-responsive relative z-10 py-8 md:py-10 lg:py-12">
           {/* Badge */}
           <div
-            className="inline-flex items-center gap-2.5 mb-10 px-3 py-1.5 rounded-full border border-amber-400/20 bg-amber-400/[0.04]"
+            className="inline-flex items-center gap-2.5 mb-5 px-3 py-1.5 rounded-full border border-amber-400/20 bg-amber-400/[0.04]"
             style={{ animation: 'heroIn 0.7s ease both' }}
           >
             <span className="relative flex h-1.5 w-1.5 shrink-0">
@@ -518,8 +534,8 @@ function LandingContent() {
 
           {/* Headline */}
           <h1
-            className="font-display font-black tracking-tighter leading-[0.88] mb-8 text-balance"
-            style={{ fontSize: 'clamp(3rem, 9vw, 8.5rem)', animation: 'heroIn 0.9s 0.08s ease both' }}
+            className="font-display font-black tracking-tighter leading-[0.88] mb-6 text-balance"
+            style={{ fontSize: 'clamp(2.8rem, 6.6vw, 6.2rem)', animation: 'heroIn 0.9s 0.08s ease both' }}
           >
             <span className="block text-foreground">Absurd News,</span>
             <span className="block text-foreground">Found by</span>
@@ -527,7 +543,7 @@ function LandingContent() {
           </h1>
 
           {/* Description */}
-          <div style={{ animation: 'heroIn 0.9s 0.2s ease both' }} className="max-w-xl mb-10 space-y-3">
+          <div style={{ animation: 'heroIn 0.9s 0.2s ease both' }} className="max-w-xl mb-6 space-y-3">
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed text-pretty">
               Four agents scan the web, score the weirdest stories, connect related headlines, and write a daily digest.
             </p>
@@ -538,7 +554,7 @@ function LandingContent() {
 
           {/* CTAs */}
           <div
-            className="flex flex-wrap gap-3 mb-16"
+            className="flex flex-wrap gap-3 mb-8"
             style={{ animation: 'heroIn 0.9s 0.32s ease both' }}
           >
             <Button
@@ -560,7 +576,7 @@ function LandingContent() {
 
           {/* Stats strip */}
           <div
-            className="grid grid-cols-2 md:grid-cols-4 gap-0 pt-7 border-t border-border/25"
+            className="grid grid-cols-2 md:grid-cols-4 gap-0 pt-4 border-t border-border/25"
             style={{ animation: 'heroIn 0.9s 0.44s ease both' }}
           >
             {[
@@ -569,7 +585,7 @@ function LandingContent() {
               { label: 'Funny Score Range',value: '1 to 100' },
               { label: 'Active Agents',    value: '4' },
             ].map(({ label, value }) => (
-              <div key={label} className="py-5 pr-8 border-r border-border/15 last:border-r-0">
+              <div key={label} className="py-3 pr-5 md:py-3.5 md:pr-8 border-r border-border/15 last:border-r-0">
                 <p className="font-display font-black text-2xl md:text-3xl text-foreground tabular-nums mb-1">
                   {value}
                 </p>
@@ -583,18 +599,17 @@ function LandingContent() {
 
         {/* Scroll indicator */}
         <div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-muted-foreground/20"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 hidden flex-col items-center gap-1.5 text-muted-foreground/25 md:flex"
           style={{ animation: 'heroIn 1s 0.7s ease both' }}
         >
-          <div className="w-px h-10 bg-gradient-to-b from-transparent to-muted-foreground/20" />
+          <div className="w-px h-8 bg-gradient-to-b from-transparent to-muted-foreground/25" />
           <span className="text-[8px] font-mono uppercase tracking-[0.25em]">scroll</span>
         </div>
-      </section>
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          TICKER
-      ════════════════════════════════════════════════════════ */}
-      <Ticker items={stories.map(s => s.title)} />
+        {/* Ticker */}
+        <Ticker items={stories.map(s => s.title)} />
+      </div>
 
       {/* ═══════════════════════════════════════════════════════
           STORIES
