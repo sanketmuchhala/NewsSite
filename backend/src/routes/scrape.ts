@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { NewsStoryScraper } from '../scrapers';
 import { adminGetStories, adminUpsertStory } from '../firebase/firestore-admin';
-import { geminiClient } from '../ai/gemini';
+import { llmClient } from '../ai/llm';
 import { fetchArticleText, extractReadableSummary } from '../scrapers/article-extractor';
 
 const router = Router();
@@ -25,7 +25,10 @@ router.post('/', async (req: Request, res: Response) => {
       success: true,
       message: `Scraped: ${results.success} saved, ${results.failed} failed out of ${results.total}`,
       results,
-      aiEnabled: !!process.env.GEMINI_API_KEY,
+      ai: {
+        groq: !!process.env.GROQ_API_KEY,
+        gemini: !!process.env.GEMINI_API_KEY,
+      },
     });
   } catch (error: any) {
     console.error('Scrape failed:', error);
@@ -38,18 +41,21 @@ router.get('/status', (_req: Request, res: Response) => {
   return res.json({
     success: true,
     sources: {
-      reddit: { enabled: true },
-      rss:    { enabled: true, feedCount: 30 },
+      reddit:     { enabled: true },
+      rss:        { enabled: true, feedCount: 30 },
       hackernews: { enabled: true },
-      twitter: { enabled: false, reason: 'Requires paid API credentials' },
+      twitter:    { enabled: false, reason: 'Requires paid API credentials' },
     },
-    ai: { enabled: !!process.env.GEMINI_API_KEY },
-    db: { type: 'firestore', connected: !!process.env.FIREBASE_PROJECT_ID },
+    ai: {
+      groq:   { enabled: !!process.env.GROQ_API_KEY,   model: 'llama-3.3-70b-versatile' },
+      gemini: { enabled: !!process.env.GEMINI_API_KEY, model: 'gemini-2.0-flash', role: 'fallback' },
+    },
+    db:   { type: 'firestore', connected: !!process.env.FIREBASE_PROJECT_ID },
     cron: { schedule: process.env.SCRAPE_CRON || '0 */2 * * *' },
   });
 });
 
-// POST /api/scrape/enhance  — re-enhance existing stories with better AI summaries
+// POST /api/scrape/enhance  — re-enhance existing stories
 router.post('/enhance', async (req: Request, res: Response) => {
   try {
     const { limit = 20, force = false } = req.body ?? {};
@@ -72,20 +78,17 @@ router.post('/enhance', async (req: Request, res: Response) => {
         const articleText = await fetchArticleText(story.url);
         if (!articleText) { stats.failed++; continue; }
 
-        let summary: string | null = null;
-        try {
-          summary = await geminiClient.generateNewsStoryAnalysis(
-            story.title, story.source, story.tags || [], articleText,
-          );
-        } catch { /* Gemini quota */ }
+        const { text: summary, model } = await llmClient.generateSummary(
+          story.title, story.source, story.tags || [], articleText,
+        );
 
-        if (!summary) summary = extractReadableSummary(articleText, story.title);
+        const finalSummary = summary || extractReadableSummary(articleText, story.title);
 
         await adminUpsertStory(story.slug, {
           content: articleText,
-          summary: summary || story.summary,
+          summary: finalSummary || story.summary,
           ai_summary: !!summary,
-          ai_model: summary ? 'gemini-2.0-flash' : null,
+          ai_model: summary ? model : null,
           ai_version: 1,
           needs_reprocess: false,
         });

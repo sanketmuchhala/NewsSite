@@ -4,7 +4,7 @@ import { RssScraper } from './rss';
 import { HackerNewsScraper } from './hackernews';
 import { NewsStory } from '../types';
 import { adminUpsertStory } from '../firebase/firestore-admin';
-import { geminiClient } from '../ai/gemini';
+import { llmClient } from '../ai/llm';
 import { fetchArticleText, extractReadableSummary } from './article-extractor';
 
 interface ScraperConfig {
@@ -61,10 +61,10 @@ export class NewsStoryScraper {
       const articleText = await fetchArticleText(story.url);
       const contentForAI = articleText || story.summary || story.content || '';
 
-      const [enhancedSummary, aiTags, aiFunnyScore] = await Promise.all([
-        geminiClient.generateNewsStoryAnalysis(story.title, story.source, story.tags || [], contentForAI),
-        geminiClient.categorizeNewsStory(story.title, story.source, contentForAI || undefined),
-        geminiClient.calculateFunnyScore(story.title, story.source, contentForAI || undefined, story.tags || []),
+      const [{ text: enhancedSummary, model: aiModel }, aiTags, aiFunnyScore] = await Promise.all([
+        llmClient.generateSummary(story.title, story.source, story.tags || [], contentForAI),
+        llmClient.generateTags(story.title, story.source, contentForAI || undefined),
+        llmClient.calculateFunnyScore(story.title, story.source, contentForAI || undefined, story.tags || []),
       ]);
 
       const combinedTags = [...new Set([...(story.tags || []), ...(aiTags || [])])].slice(0, 8);
@@ -79,14 +79,14 @@ export class NewsStoryScraper {
         content: contentForAI || story.content || null,
         tags: combinedTags,
         funny_score: Math.round((aiFunnyScore + (story.funny_score || 50)) / 2),
-        ai_summary: true,
-        ai_model: 'gemini-2.0-flash',
+        ai_summary: !!(enhancedSummary),
+        ai_model: enhancedSummary ? aiModel : null,
         ai_version: 1,
-        needs_reprocess: false,
+        needs_reprocess: !enhancedSummary,   // flag for reprocess if AI failed
       };
     } catch (error) {
       console.error('AI enhancement failed:', story.title, error);
-      return story;
+      return { ...story, needs_reprocess: true };
     }
   }
 
