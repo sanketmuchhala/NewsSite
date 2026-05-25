@@ -18,7 +18,7 @@ export default function Header() {
   const [isDark,   setIsDark]   = useState(true);
   const [scrolled, setScrolled] = useState(false);
 
-  // Theme init — read localStorage before paint
+  // Theme init - read localStorage before paint
   useEffect(() => {
     const saved = localStorage.getItem('theme');
     const dark  = saved !== 'light';
@@ -51,7 +51,7 @@ export default function Header() {
           : 'bg-background/90 backdrop-blur border-b border-border/25'
       }`}
     >
-      {/* Amber accent line — top of header */}
+      {/* Amber accent line - top of header */}
       <div className="h-px w-full bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
 
       <div className="container-responsive">
@@ -72,7 +72,7 @@ export default function Header() {
               </em>
             </div>
 
-            {/* Live pulse — reinforces the "agent running" story */}
+            {/* Live pulse - reinforces the "agent running" story */}
             <div className="flex items-center gap-1.5 hidden sm:flex">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60 animate-ping" />
@@ -100,7 +100,7 @@ export default function Header() {
                 >
                   {label}
 
-                  {/* Amber underline — sits flush at header bottom edge */}
+                  {/* Amber underline - sits flush at header bottom edge */}
                   <span
                     className={`absolute bottom-0 left-2 right-2 h-[2px] rounded-full transition-all duration-200 ${
                       active
@@ -132,7 +132,7 @@ export default function Header() {
               }
             </button>
 
-            {/* CTA button — amber, matches site CTAs */}
+            {/* CTA button - amber, matches site CTAs */}
             <Link href="/discover" className="hidden sm:block ml-1">
               <button className="h-8 px-4 rounded-lg bg-amber-400 text-zinc-950 text-[12px] font-bold tracking-wide hover:bg-amber-300 active:bg-amber-500 transition-colors duration-150">
                 Explore

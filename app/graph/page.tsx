@@ -92,7 +92,7 @@ export default function GraphPage() {
                     Reading the Graph
                   </p>
                   <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                    <p>Each circle represents a news story discovered by the agent. Node size reflects the Funny Score — larger means funnier.</p>
+                    <p>Each circle represents a news story discovered by the agent. Larger nodes have higher Funny Scores.</p>
                     <p>Connecting lines show relationships the agent detected automatically across sources.</p>
                   </div>
                 </div>

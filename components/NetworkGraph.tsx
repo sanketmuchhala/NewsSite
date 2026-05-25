@@ -308,10 +308,10 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
       className={`relative rounded-xl overflow-hidden border border-border/40 ${className}`}
       style={{ background: 'hsl(240,10%,4%)', minHeight: '75vh' }}
     >
-      {/* Dot-grid overlay — matches site background texture */}
+      {/* Dot-grid overlay - matches site background texture */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.025)_1px,transparent_0)] [background-size:24px_24px] pointer-events-none z-0" />
 
-      {/* ── Control panel — top left ──────────────────────────── */}
+      {/* ── Control panel - top left ──────────────────────────── */}
       <div className="absolute top-4 left-4 z-20">
         <div className={`${panel} p-3.5 min-w-[120px]`}>
           <span className={panelLabel}>Controls</span>
@@ -340,7 +340,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
         </div>
       </div>
 
-      {/* ── Stats panel — top right ───────────────────────────── */}
+      {/* ── Stats panel - top right ───────────────────────────── */}
       <div className="absolute top-4 right-4 z-20">
         <div className={`${panel} p-3.5 min-w-[140px]`}>
           <span className={panelLabel}>Network Stats</span>
@@ -371,7 +371,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
         </div>
       </div>
 
-      {/* ── Selected node panel — bottom left ────────────────── */}
+      {/* ── Selected node panel - bottom left ────────────────── */}
       {selectedNode && (
         <div className="absolute bottom-4 left-4 z-20 w-72">
           <div className={`${panel} p-4`}>
@@ -453,7 +453,7 @@ export default function NetworkGraph({ onNodeClick, className = '' }: NetworkGra
         </div>
       )}
 
-      {/* ── Legend — bottom right ─────────────────────────────── */}
+      {/* ── Legend - bottom right ─────────────────────────────── */}
       <div className="absolute bottom-4 right-4 z-20">
         <div className={`${panel} p-3.5`}>
           <span className={panelLabel}>Legend</span>

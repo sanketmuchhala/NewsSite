@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         summary = await geminiClient.generateNewsStoryAnalysis(
           story.title, story.source, story.tags || [], articleText,
         );
-      } catch { /* Gemini quota — use fallback */ }
+      } catch { /* Gemini quota - use fallback */ }
 
       if (!summary) {
         summary = extractReadableSummary(articleText, story.title);

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   ArrowRight, ArrowUp, Clock,
   Radio, Cpu, GitBranch, FileText,
-  Network, BellRing, Headphones, Timer,
+  Network, BellRing, Headphones,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -42,62 +42,52 @@ function timeAgo(date: string | Date | null | undefined): string | null {
 
 // ─── Agent pipeline data ──────────────────────────────────────
 
-const AGENT_DATA = [
+const PIPELINE_STAGES = [
   {
     num: '01',
     icon: Radio,
     name: 'Scrape Agent',
     trigger: 'every 2 hours',
+    source: 'RSS, Reddit, HN',
+    output: 'stories + feed_runs',
     description:
-      'Runs three scrapers in parallel — RSS feeds, Reddit, and Hacker News. Each story\'s URL is hashed into a deterministic slug and checked against Firestore; duplicates are discarded before any LLM call. Every run opens a FeedRun document in Firestore and closes it with per-source counts, AI success rate, and any errors.',
-    rows: [
-      { k: 'Sources',  v: 'RSS (30+) · Reddit · Hacker News' },
-      { k: 'Dedup',    v: 'URL slug lookup in Firestore' },
-      { k: 'Writes',   v: 'stories · feed_runs' },
-    ],
+      'Collects candidates from more than 30 feeds, Reddit, and Hacker News, then removes duplicate URLs before AI work starts.',
+    metric: '30+ sources',
   },
   {
     num: '02',
     icon: Cpu,
     name: 'LLM Enhancer',
     trigger: 'per new story',
+    source: 'new stories',
+    output: 'summary, tags, score',
     description:
-      'Runs three tasks on each new story in a single parallel call: a 5–7 sentence deadpan summary, 3–5 topic tags, and a Funny Score from 1 to 100. Groq\'s Llama 3.3 70B is the primary model — free-tier, ~5× faster than Gemini. Any Groq error silently falls back to Gemini 2.0 Flash. The ai_model field on each story records exactly which model ran.',
-    rows: [
-      { k: 'Primary',  v: 'Groq · llama-3.3-70b-versatile' },
-      { k: 'Fallback', v: 'Google Gemini 2.0 Flash' },
-      { k: 'Tasks',    v: 'summary · tags · funny score' },
-    ],
+      'Groq writes the deadpan summary, topic tags, and Funny Score. Gemini takes over automatically when needed.',
+    metric: '1 to 100',
   },
   {
     num: '03',
     icon: GitBranch,
     name: 'Relationship Agent',
     trigger: 'post-scrape',
+    source: 'story graph inputs',
+    output: 'story_relationships',
     description:
-      'Runs immediately after each scrape cycle with zero extra LLM calls. Scores every new-story against existing-story pair using three signals: tag Jaccard similarity, title word overlap (stop-words excluded), and a same-source bonus. Pairs above 0.3 are written to story_relationships with a sorted deterministic doc ID — the same pair is always an idempotent upsert. The graph page reads directly from this collection.',
-    rows: [
-      { k: 'Formula',   v: 'tagOverlap × 0.4 + wordOverlap × 0.3 + sameSource × 0.3' },
-      { k: 'Threshold', v: '0.3 — below this, pair is discarded' },
-      { k: 'Writes',    v: 'story_relationships' },
-    ],
+      'Scores related stories with tag overlap, title similarity, and source matches, then writes edges for the network view.',
+    metric: '0.3 threshold',
   },
   {
     num: '04',
     icon: FileText,
     name: 'Digest Agent',
     trigger: 'daily at 08:00 UTC',
+    source: 'top 48h stories',
+    output: 'digests/YYYY-MM-DD',
     description:
-      'Selects the top 8 stories by funny_score from the last 48 hours and sends them to the LLM with a specific prompt: write exactly 3 punchy sentences, treat the absurdity as completely normal, be dry not silly. The first sentence becomes the headline. The result is written to digests/YYYY-MM-DD in Firestore and rendered on this page as the amber card above the story feed.',
-    rows: [
-      { k: 'Source',  v: 'top 8 stories · last 48 hours · by funny_score' },
-      { k: 'Prompt',  v: '"deadpan editor · 3 sentences · no exaggeration"' },
-      { k: 'Writes',  v: 'digests/YYYY-MM-DD' },
-    ],
+      'Picks the strongest recent stories and turns them into a concise morning roundup for the homepage.',
+    metric: 'top 8',
   },
 ] as const;
-
-type AgentItem = (typeof AGENT_DATA)[number];
 
 // ─── Roadmap ──────────────────────────────────────────────────
 
@@ -117,7 +107,7 @@ const ROADMAP_ITEMS = [
   {
     icon: Network,
     title: 'Personalized Feeds',
-    desc: 'The agent learns individual humor preferences over time and builds a personal digest tuned to each user\'s taste — fully automatic, no manual configuration.',
+    desc: 'The agent learns individual humor preferences over time and builds a personal digest tuned to each user\'s taste. Fully automatic, no manual configuration.',
     status: 'Planned',
   },
 ];
@@ -348,47 +338,92 @@ function Skeleton() {
   );
 }
 
-function AgentCard({ agent }: { agent: AgentItem }) {
-  const Icon = agent.icon;
+function PipelineVisualization() {
   return (
-    <div className="relative rounded-xl border border-border/35 bg-card/5 p-6 md:p-7 hover:border-border/60 hover:bg-card/15 transition-all duration-200 group flex flex-col">
-      {/* Header row */}
-      <div className="flex items-start justify-between mb-5">
-        <span className="font-mono text-[10px] font-bold text-muted-foreground/25 tracking-[0.2em] uppercase">
-          {agent.num}
-        </span>
-        <div className="w-8 h-8 rounded-lg border border-border/35 bg-muted/15 flex items-center justify-center group-hover:border-amber-400/25 group-hover:bg-amber-400/5 transition-all duration-200">
-          <Icon className="w-[15px] h-[15px] text-amber-400/50 group-hover:text-amber-400/80 transition-colors" />
-        </div>
-      </div>
+    <div className="relative overflow-hidden rounded-xl border border-border/30 bg-zinc-950/40 p-4 md:p-7 shadow-2xl shadow-black/20">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.08)_1px,transparent_0)] [background-size:22px_22px] opacity-35" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" />
 
-      {/* Name + trigger */}
-      <div className="mb-4">
-        <h3 className="font-display font-bold text-foreground text-[15px] uppercase tracking-[0.04em] mb-1.5">
-          {agent.name}
-        </h3>
-        <span className="text-[9px] font-mono font-semibold uppercase tracking-[0.16em] text-amber-400/55">
-          {agent.trigger}
-        </span>
-      </div>
-
-      {/* Description */}
-      <p className="text-sm text-muted-foreground leading-relaxed mb-6 flex-1 text-pretty">
-        {agent.description}
-      </p>
-
-      {/* Data rows */}
-      <div className="space-y-2.5 pt-4 border-t border-border/25">
-        {agent.rows.map((row) => (
-          <div key={row.k} className="flex items-start gap-3">
-            <span className="text-[8.5px] font-bold uppercase tracking-widest text-muted-foreground/30 mt-px w-16 shrink-0 leading-4">
-              {row.k}
-            </span>
-            <span className="text-[11px] font-mono text-muted-foreground/65 leading-snug">
-              {row.v}
-            </span>
+      <div className="relative grid gap-4 lg:grid-cols-[0.85fr_1.15fr] lg:items-stretch">
+        <div className="rounded-lg border border-border/20 bg-background/45 p-5 md:p-6">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400 mb-4">
+            Live Data Flow
+          </p>
+          <div className="space-y-4">
+            {[
+              ['Inputs', 'RSS feeds, Reddit, Hacker News'],
+              ['Processing', 'Deduplication, LLM scoring, graph matching'],
+              ['Outputs', 'Stories, relationships, daily digests'],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-start gap-3 border-b border-border/15 pb-4 last:border-b-0 last:pb-0">
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.8)]" />
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/35 mb-1">
+                    {label}
+                  </p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{value}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+          <div className="mt-6 rounded-lg border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3">
+            <p className="text-[10px] font-mono leading-relaxed text-amber-100/70">
+              scrapeAll() {'>'} enhanceStory() {'>'} runRelationshipAgent() {'>'} runDigestAgent()
+            </p>
+          </div>
+        </div>
+
+        <div className="relative rounded-lg border border-border/20 bg-background/35 p-4 md:p-6">
+          <div className="absolute left-[31px] top-10 bottom-10 w-px bg-gradient-to-b from-amber-400/15 via-amber-400/45 to-amber-400/15 md:left-[39px]" />
+          <span className="pipeline-dot left-[27px] md:left-[35px]" />
+          <span className="pipeline-dot left-[27px] md:left-[35px]" style={{ animationDelay: '1.2s' }} />
+
+          <div className="space-y-5">
+            {PIPELINE_STAGES.map((stage, index) => {
+              const Icon = stage.icon;
+              return (
+                <div key={stage.num} className="relative grid grid-cols-[34px_1fr] gap-4 md:grid-cols-[42px_1fr]">
+                  <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/25 bg-zinc-950 shadow-[0_0_22px_rgba(251,191,36,0.12)] md:h-12 md:w-12">
+                    <Icon className="h-4 w-4 text-amber-400 md:h-[18px] md:w-[18px]" />
+                    <span className="absolute -right-1 -top-1 rounded-full border border-border/40 bg-background px-1.5 py-0.5 text-[8px] font-bold text-muted-foreground/55">
+                      {stage.num}
+                    </span>
+                  </div>
+
+                  <div
+                    className="rounded-lg border border-border/25 bg-card/10 p-4 transition-all duration-200 hover:border-amber-400/25 hover:bg-card/20"
+                    style={{ animation: `heroIn 0.55s ${index * 0.08}s ease both` }}
+                  >
+                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h3 className="font-display text-lg font-bold text-foreground">{stage.name}</h3>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-amber-400/65">
+                          {stage.trigger}
+                        </p>
+                      </div>
+                      <span className="w-fit rounded border border-border/30 bg-muted/10 px-2 py-1 text-[9px] font-mono text-muted-foreground/55">
+                        {stage.metric}
+                      </span>
+                    </div>
+                    <p className="mb-4 text-sm leading-relaxed text-muted-foreground text-pretty">
+                      {stage.description}
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded border border-border/20 bg-background/35 px-3 py-2">
+                        <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-muted-foreground/30">Reads</p>
+                        <p className="text-[11px] font-mono text-muted-foreground/65">{stage.source}</p>
+                      </div>
+                      <div className="rounded border border-amber-400/15 bg-amber-400/[0.035] px-3 py-2">
+                        <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-amber-400/45">Writes</p>
+                        <p className="text-[11px] font-mono text-amber-100/60">{stage.output}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -486,26 +521,18 @@ function LandingContent() {
             className="font-display font-black tracking-tighter leading-[0.88] mb-8 text-balance"
             style={{ fontSize: 'clamp(3rem, 9vw, 8.5rem)', animation: 'heroIn 0.9s 0.08s ease both' }}
           >
-            <span className="block text-foreground">An AI Agent That</span>
-            <span className="block text-foreground">Finds the Funniest</span>
-            <em className="block text-amber-400 not-italic">News Online.</em>
+            <span className="block text-foreground">Absurd News,</span>
+            <span className="block text-foreground">Found by</span>
+            <em className="block text-amber-400 not-italic">AI.</em>
           </h1>
 
           {/* Description */}
-          <div style={{ animation: 'heroIn 0.9s 0.2s ease both' }} className="max-w-2xl mb-10 space-y-3">
+          <div style={{ animation: 'heroIn 0.9s 0.2s ease both' }} className="max-w-xl mb-10 space-y-3">
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed text-pretty">
-              Four autonomous agents run continuously on a Railway server. Every two hours, the Scrape Agent
-              pulls from over 30 RSS feeds, Reddit, and Hacker News — deduplicating by URL and passing new
-              stories to an LLM Enhancer. Groq&apos;s Llama&nbsp;3.3&nbsp;70B reads each article, generates a
-              deadpan summary, tags it, and assigns a Funny Score from 1 to 100.
-            </p>
-            <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
-              After every scrape, a Relationship Agent maps story connections algorithmically — no extra
-              LLM calls — and writes graph edges to Firestore. Every morning at 8&nbsp;AM, a Digest Agent
-              picks the top&nbsp;8 stories and writes a 3-sentence roundup. No human involvement at any step.
+              Four agents scan the web, score the weirdest stories, connect related headlines, and write a daily digest.
             </p>
             <p className="text-sm text-muted-foreground/50 font-mono">
-              This is what they found.
+              No editors. No waiting. Just the strange stuff.
             </p>
           </div>
 
@@ -537,9 +564,9 @@ function LandingContent() {
             style={{ animation: 'heroIn 0.9s 0.44s ease both' }}
           >
             {[
-              { label: 'Stories Indexed',  value: countedTotal > 0 ? countedTotal.toLocaleString() : '—' },
+              { label: 'Stories Indexed',  value: countedTotal > 0 ? countedTotal.toLocaleString() : '0' },
               { label: 'Scrape Interval',  value: 'Every 2h' },
-              { label: 'Funny Score Range',value: '1 – 100' },
+              { label: 'Funny Score Range',value: '1 to 100' },
               { label: 'Active Agents',    value: '4' },
             ].map(({ label, value }) => (
               <div key={label} className="py-5 pr-8 border-r border-border/15 last:border-r-0">
@@ -676,77 +703,12 @@ function LandingContent() {
               The Agent Pipeline
             </h2>
             <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed text-pretty">
-              Four specialized agents run inside a Railway container. Each has a defined trigger,
-              reads from specific sources, and writes to a specific Firestore collection.
-              They hand off to each other in sequence — no orchestration layer required.
+              Four specialized agents run inside a Railway container. The visualization below shows how sources,
+              models, graph edges, and digests move through the system.
             </p>
           </div>
 
-          {/* Agent cards 2×2 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mb-10">
-            {AGENT_DATA.map(agent => (
-              <AgentCard key={agent.num} agent={agent} />
-            ))}
-          </div>
-
-          {/* Data flow strip */}
-          <div className="rounded-xl border border-border/25 bg-card/5 px-6 py-5">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/30 mb-3">
-              Data Flow
-            </p>
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
-              {[
-                { text: 'Sources',             accent: false },
-                { text: '→',                   accent: false, dim: true  },
-                { text: 'Scrape Agent',         accent: false },
-                { text: '→',                   accent: false, dim: true  },
-                { text: 'LLM Enhancer',         accent: false },
-                { text: '→',                   accent: false, dim: true  },
-                { text: 'stories',              accent: true  },
-                { text: '→',                   accent: false, dim: true  },
-                { text: 'Relationship Agent',   accent: false },
-                { text: '→',                   accent: false, dim: true  },
-                { text: 'story_relationships',  accent: true  },
-              ].map((item, i) => (
-                <span
-                  key={i}
-                  className={
-                    item.accent
-                      ? 'text-amber-400/60 bg-amber-400/8 border border-amber-400/15 px-2 py-0.5 rounded'
-                      : item.dim
-                      ? 'text-muted-foreground/20'
-                      : 'text-muted-foreground/50'
-                  }
-                >
-                  {item.text}
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono mt-2">
-              {[
-                { text: 'stories',         accent: true  },
-                { text: '→',              accent: false, dim: true  },
-                { text: 'Digest Agent',    accent: false },
-                { text: '→',              accent: false, dim: true  },
-                { text: 'digests/YYYY-MM-DD', accent: true },
-                { text: '→',              accent: false, dim: true  },
-                { text: 'Homepage card',   accent: false },
-              ].map((item, i) => (
-                <span
-                  key={i}
-                  className={
-                    item.accent
-                      ? 'text-amber-400/60 bg-amber-400/8 border border-amber-400/15 px-2 py-0.5 rounded'
-                      : item.dim
-                      ? 'text-muted-foreground/20'
-                      : 'text-muted-foreground/50'
-                  }
-                >
-                  {item.text}
-                </span>
-              ))}
-            </div>
-          </div>
+          <PipelineVisualization />
         </div>
       </section>
 
@@ -766,8 +728,8 @@ function LandingContent() {
             {[
               { label: 'Sources Monitored',   value: '30+',                              sub: 'RSS, Reddit, HN' },
               { label: 'Scrapes per Day',      value: '12',                               sub: 'every 2 hours, 24/7' },
-              { label: 'Avg Funny Score',      value: totalStories > 0 ? '74' : '—',     sub: 'out of 100' },
-              { label: 'Stories Indexed',      value: countedTotal > 0 ? countedTotal.toLocaleString() : '—', sub: 'and counting' },
+              { label: 'Avg Funny Score',      value: totalStories > 0 ? '74' : '0',     sub: 'out of 100' },
+              { label: 'Stories Indexed',      value: countedTotal > 0 ? countedTotal.toLocaleString() : '0', sub: 'and counting' },
             ].map(({ label, value, sub }, i) => (
               <div
                 key={label}

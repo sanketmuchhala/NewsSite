@@ -321,7 +321,7 @@ export default function StoryPage({ params }: StoryPageProps) {
               <MessageCircle className="w-5 h-5" /> Comments
             </h2>
             <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">Comments are coming soon — stay tuned!</p>
+              <p className="text-sm text-muted-foreground">Comments are coming soon. Stay tuned!</p>
             </div>
           </div>
         </article>

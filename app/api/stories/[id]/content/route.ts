@@ -14,7 +14,7 @@ export async function GET(
     }
     const story = storyResult.data;
 
-    // Already has real content — return it
+    // Already has real content - return it
     if (story.content && story.content.length > 100 && story.content !== story.title) {
       return NextResponse.json({ success: true, content: story.content, summary: story.summary, cached: true });
     }
@@ -30,7 +30,7 @@ export async function GET(
       summary = await geminiClient.generateNewsStoryAnalysis(
         story.title, story.source, story.tags || [], articleText,
       );
-    } catch { /* quota — use fallback */ }
+    } catch { /* quota - use fallback */ }
 
     if (!summary) {
       summary = extractReadableSummary(articleText, story.title);

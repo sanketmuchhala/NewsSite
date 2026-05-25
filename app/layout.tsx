@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   keywords: ['funny news', 'viral news', 'humor', 'comedy', 'absurd news', 'entertainment', 'news aggregator'],
   authors: [{ name: 'FunnyNews Team' }],
   openGraph: {
-    title: 'FunnyNews — News so Weird It Must Be Real',
+    title: 'FunnyNews: News so Weird It Must Be Real',
     description: 'Your daily dose of the funniest and most absurd news from around the world.',
     type: 'website',
     locale: 'en_US',
@@ -110,10 +110,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </h4>
                   <div className="space-y-2">
                     {[
-                      'Scrape Agent — every 2 hours',
-                      'LLM Enhancer — Groq + Gemini',
-                      'Relationship Agent — post-scrape',
-                      'Digest Agent — daily 08:00 UTC',
+                      'Scrape Agent · every 2 hours',
+                      'LLM Enhancer · Groq + Gemini',
+                      'Relationship Agent · post-scrape',
+                      'Digest Agent · daily 08:00 UTC',
                     ].map(line => (
                       <p key={line} className="text-xs font-mono text-muted-foreground/35 leading-snug">
                         {line}
@@ -126,7 +126,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {/* Bottom row */}
               <div className="pt-6 border-t border-border/20 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <p className="text-[10px] text-muted-foreground/30 font-mono">
-                  FunnyNews — built with Next.js, Railway, Groq, Firestore
+                  FunnyNews · built with Next.js, Railway, Groq, Firestore
                 </p>
                 <p className="text-[10px] text-muted-foreground/20 font-mono">
                   {new Date().getFullYear()}

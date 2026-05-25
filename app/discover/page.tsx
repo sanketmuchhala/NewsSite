@@ -76,7 +76,7 @@ function DiscoverCard({ story }: { story: NewsStory }) {
     <div className="break-inside-avoid mb-4">
       <Link href={`/story/${story.slug}`} className="group block">
         <article className={`rounded-xl overflow-hidden border ${theme.accent} bg-card/20 hover:bg-card/50 hover:border-amber-400/30 hover:shadow-lg hover:shadow-amber-400/[0.04] transition-all duration-200`}>
-          {/* Thumbnail — real image or gradient fallback */}
+          {/* Thumbnail - real image or gradient fallback */}
           <div
             className={`relative overflow-hidden ${!showImage ? `bg-gradient-to-br ${theme.gradient}` : 'bg-muted/30'}`}
             style={{ paddingTop: '60%' }}
