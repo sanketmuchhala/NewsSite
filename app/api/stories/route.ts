@@ -4,7 +4,7 @@ import { NewsStory } from '@/types';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const pageSize = parseInt(searchParams.get('pageSize') || '20');
+  const pageSize = Math.min(500, parseInt(searchParams.get('pageSize') || '100'));
   const source = searchParams.get('source');
   const sortBy = (searchParams.get('sortBy') || searchParams.get('sort') || 'created_at') as
     'created_at' | 'upvotes' | 'funny_score';

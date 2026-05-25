@@ -302,7 +302,7 @@ function LandingContent() {
   const engageCount = useCountUp(stats.engagement);
 
   useEffect(() => {
-    fetch('/api/stories?pageSize=20')
+    fetch('/api/stories?pageSize=100')
       .then(r => r.json())
       .then((res: PaginatedResponse<NewsStory>) => {
         if (res.success && res.data) {

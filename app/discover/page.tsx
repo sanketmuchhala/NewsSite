@@ -184,7 +184,7 @@ export default function DiscoverPage() {
   const [sortOpen, setSortOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/stories?pageSize=50')
+    fetch('/api/stories?pageSize=200')
       .then(r => r.json())
       .then((res: PaginatedResponse<NewsStory>) => {
         if (res.success && res.data) setStories(res.data);

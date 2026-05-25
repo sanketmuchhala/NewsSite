@@ -125,7 +125,7 @@ export default function TrendingPage() {
   useEffect(() => {
     async function load() {
       try {
-        const response = await fetch('/api/stories?sort=trending&pageSize=20');
+        const response = await fetch('/api/stories?sort=trending&pageSize=100');
         const result = await response.json();
         if (result.success && result.data) {
           const sorted: NewsStory[] = [...result.data].sort((a, b) => {

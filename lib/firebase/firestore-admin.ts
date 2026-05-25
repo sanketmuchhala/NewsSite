@@ -36,7 +36,7 @@ function toNewsStory(id: string, data: FirebaseFirestore.DocumentData): NewsStor
 }
 
 export async function adminGetStories(
-  pageSize = 20,
+  pageSize = 100,
   sortBy: 'scraped_at' | 'upvotes' | 'funny_score' = 'scraped_at'
 ): Promise<{ success: boolean; data?: NewsStory[]; error?: string }> {
   try {
