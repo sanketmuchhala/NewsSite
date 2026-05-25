@@ -340,104 +340,109 @@ function Skeleton() {
 
 function PipelineVisualization() {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border/30 bg-zinc-950/50 p-4 shadow-2xl shadow-black/25 md:p-7">
+    <div className="relative overflow-hidden rounded-xl border border-border/30 bg-zinc-950/50 p-4 shadow-2xl shadow-black/25 md:p-8">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.075)_1px,transparent_0)] [background-size:24px_24px] opacity-45" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/55 to-transparent" />
 
-      <div className="relative min-h-[900px] md:min-h-[540px]">
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 hidden h-full w-full md:block"
-          viewBox="0 0 1000 560"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="pipelineLine" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="rgba(251,191,36,0.08)" />
-              <stop offset="45%" stopColor="rgba(251,191,36,0.55)" />
-              <stop offset="100%" stopColor="rgba(251,191,36,0.08)" />
-            </linearGradient>
-            <filter id="packetGlow">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
-          {[
-            'M120 112 C260 112 275 178 405 178',
-            'M405 178 C560 178 580 112 720 112',
-            'M405 178 C560 178 580 280 720 280',
-            'M720 280 C805 280 815 415 880 415',
-            'M720 112 C830 112 850 210 880 415',
-          ].map((path, i) => (
-            <g key={path}>
-              <path d={path} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
-              <path d={path} fill="none" stroke="url(#pipelineLine)" strokeWidth="2" strokeDasharray="10 12" className="workflow-trace" />
-              <circle r="7" fill="rgb(251,191,36)" filter="url(#packetGlow)" opacity="0.95">
-                <animateMotion dur="4.8s" begin={`${i * 0.7}s`} repeatCount="indefinite" path={path} />
-              </circle>
-            </g>
-          ))}
-        </svg>
-
-        <div className="absolute left-1/2 top-[2%] z-10 w-[min(230px,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-border/25 bg-background/80 p-4 backdrop-blur-md md:left-[4%] md:top-[6%] md:w-[230px] md:translate-x-0">
-          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/35">Inputs</p>
-          <h3 className="font-display text-xl font-bold text-foreground">Open Web Sources</h3>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">RSS feeds, Reddit threads, and Hacker News queries enter the queue.</p>
+      <div className="relative mx-auto max-w-5xl">
+        <div className="relative z-10 mx-auto mb-8 max-w-xl rounded-lg border border-border/25 bg-background/85 p-5 text-center shadow-xl shadow-black/15 backdrop-blur-md">
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-amber-400/70">Inputs</p>
+          <h3 className="font-display text-2xl font-bold text-foreground">Open Web Sources</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            RSS feeds, Reddit threads, and Hacker News queries enter the queue before the agents take over.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {['30+ RSS feeds', 'Reddit', 'Hacker News'].map(item => (
+              <span key={item} className="rounded border border-border/25 bg-muted/10 px-2.5 py-1 text-[10px] font-mono text-muted-foreground/60">
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {PIPELINE_STAGES.map((stage, index) => {
-          const Icon = stage.icon;
-          const positions = [
-            'left-1/2 top-[21%] -translate-x-1/2 md:left-[34%] md:top-[16%] md:translate-x-0',
-            'left-1/2 top-[40%] -translate-x-1/2 md:left-[66%] md:top-[4%] md:translate-x-0',
-            'left-1/2 top-[59%] -translate-x-1/2 md:left-[66%] md:top-[34%] md:translate-x-0',
-            'left-1/2 top-[78%] -translate-x-1/2 md:left-[78%] md:top-[68%] md:translate-x-0',
-          ];
-          return (
-            <div
-              key={stage.num}
-              className={`absolute z-10 w-[min(235px,calc(100%-2rem))] rounded-lg border border-border/30 bg-background/85 p-4 shadow-xl shadow-black/20 backdrop-blur-md transition-all duration-200 hover:border-amber-400/35 hover:bg-background md:w-[235px] ${positions[index]}`}
-              style={{ animation: `heroIn 0.55s ${index * 0.08}s ease both` }}
-            >
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/25 bg-amber-400/[0.06]">
-                    <Icon className="h-4 w-4 text-amber-400" />
-                  </span>
-                  <div>
-                    <p className="text-[8px] font-bold uppercase tracking-[0.18em] text-amber-400/60">{stage.num}</p>
-                    <h3 className="font-display text-base font-bold text-foreground leading-tight">{stage.name}</h3>
+        <div className="relative">
+          <div className="absolute bottom-8 left-5 top-0 w-px bg-gradient-to-b from-amber-400/15 via-amber-400/45 to-amber-400/15 md:left-1/2" />
+          <span className="vertical-workflow-packet left-5 md:left-1/2" />
+          <span className="vertical-workflow-packet left-5 md:left-1/2" style={{ animationDelay: '1.35s' }} />
+          <span className="vertical-workflow-packet left-5 md:left-1/2" style={{ animationDelay: '2.7s' }} />
+
+          <div className="space-y-5 md:space-y-7">
+            {PIPELINE_STAGES.map((stage, index) => {
+              const Icon = stage.icon;
+              const alignLeft = index % 2 === 0;
+
+              return (
+                <div
+                  key={stage.num}
+                  className="relative grid gap-4 pl-14 md:grid-cols-[1fr_72px_1fr] md:items-center md:pl-0"
+                  style={{ animation: `heroIn 0.55s ${index * 0.08}s ease both` }}
+                >
+                  <div className={`hidden md:block ${alignLeft ? '' : 'md:col-start-3'}`}>
+                    <StagePanel stage={stage} />
+                  </div>
+
+                  <div className="absolute left-0 top-5 z-20 md:static md:col-start-2 md:row-start-1 md:flex md:justify-center">
+                    <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/35 bg-zinc-950 shadow-[0_0_28px_rgba(251,191,36,0.18)] md:h-12 md:w-12">
+                      <Icon className="h-4 w-4 text-amber-400 md:h-[18px] md:w-[18px]" />
+                      <span className="absolute -right-2 -top-2 rounded-full border border-border/40 bg-background px-1.5 py-0.5 text-[8px] font-bold text-muted-foreground/60">
+                        {stage.num}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="md:hidden">
+                    <StagePanel stage={stage} />
+                  </div>
+
+                  <div className={`hidden md:block ${alignLeft ? 'md:col-start-3' : 'md:col-start-1 md:row-start-1'}`}>
+                    <div className="rounded-lg border border-border/20 bg-background/45 p-4 backdrop-blur-md">
+                      <p className="mb-2 text-[8px] font-bold uppercase tracking-[0.18em] text-muted-foreground/30">
+                        Writes
+                      </p>
+                      <p className="font-mono text-[11px] leading-relaxed text-amber-100/65">{stage.output}</p>
+                      <div className="mt-3 h-px bg-gradient-to-r from-amber-400/35 to-transparent" />
+                      <p className="mt-3 text-[10px] font-mono text-muted-foreground/50">{stage.metric}</p>
+                    </div>
                   </div>
                 </div>
-                <span className="rounded border border-border/30 bg-muted/10 px-2 py-1 text-[8px] font-mono text-muted-foreground/55">
-                  {stage.metric}
-                </span>
-              </div>
-              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">{stage.description}</p>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="rounded border border-border/20 bg-muted/10 px-2 py-1 text-[9px] font-mono text-muted-foreground/55">
-                  {stage.trigger}
-                </span>
-                <span className="rounded border border-amber-400/15 bg-amber-400/[0.04] px-2 py-1 text-[9px] font-mono text-amber-100/60">
-                  {stage.output}
-                </span>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
 
-        <div className="absolute left-1/2 top-[17%] z-0 h-[62%] w-px -translate-x-1/2 bg-gradient-to-b from-amber-400/10 via-amber-400/45 to-amber-400/10 md:hidden" />
-        <span className="mobile-workflow-packet left-1/2 top-[17%] md:hidden" />
-        <span className="mobile-workflow-packet left-1/2 top-[17%] md:hidden" style={{ animationDelay: '1.4s' }} />
+          <div className="relative z-10 mt-8 rounded-lg border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-center backdrop-blur-md">
+            <p className="text-[10px] font-mono leading-relaxed text-amber-100/65">
+              sources {'>'} scrape {'>'} enhance {'>'} connect {'>'} digest
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="absolute bottom-4 left-4 right-4 z-10 rounded-lg border border-border/20 bg-background/70 px-4 py-3 backdrop-blur-md md:left-6 md:right-auto md:w-[360px]">
-          <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/65">
-            sources {'>'} scrape {'>'} score {'>'} relationships {'>'} digest
+function StagePanel({ stage }: { stage: (typeof PIPELINE_STAGES)[number] }) {
+  return (
+    <div className="rounded-lg border border-border/30 bg-background/85 p-4 shadow-xl shadow-black/15 backdrop-blur-md transition-all duration-200 hover:border-amber-400/35 hover:bg-background">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-amber-400/60">
+            {stage.trigger}
           </p>
+          <h3 className="font-display text-lg font-bold leading-tight text-foreground">{stage.name}</h3>
+        </div>
+        <span className="shrink-0 rounded border border-border/30 bg-muted/10 px-2 py-1 text-[8px] font-mono text-muted-foreground/55">
+          {stage.metric}
+        </span>
+      </div>
+      <p className="mb-4 text-sm leading-relaxed text-muted-foreground text-pretty">{stage.description}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded border border-border/20 bg-muted/10 px-3 py-2">
+          <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-muted-foreground/30">Reads</p>
+          <p className="font-mono text-[11px] leading-relaxed text-muted-foreground/65">{stage.source}</p>
+        </div>
+        <div className="rounded border border-amber-400/15 bg-amber-400/[0.04] px-3 py-2 md:hidden">
+          <p className="mb-1 text-[8px] font-bold uppercase tracking-[0.18em] text-amber-400/45">Writes</p>
+          <p className="font-mono text-[11px] leading-relaxed text-amber-100/60">{stage.output}</p>
         </div>
       </div>
     </div>
