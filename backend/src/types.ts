@@ -1,0 +1,22 @@
+export type NewsStory = {
+  id?: number;
+  slug?: string;
+  title: string;
+  url: string;
+  source: string;
+  published_at?: string | Date | null;
+  summary?: string | null;
+  content?: string | null;
+  author?: string | null;
+  funny_score?: number;
+  tags: string[];
+  upvotes?: number;
+  downvotes?: number;
+  view_count?: number;
+  image_url?: string | null;
+  source_type?: 'reddit' | 'twitter' | 'rss' | 'api' | 'manual';
+  metadata?: any;
+  scraped_at?: string | Date | null;
+  created_at?: Date;
+  updated_at?: Date;
+};
