@@ -234,3 +234,30 @@ export async function adminFinishFeedRun(
     return { success: false, error: 'Failed to finish feed run' };
   }
 }
+
+export async function adminGetFeedRuns(
+  limit = 20
+): Promise<{ success: boolean; data?: (FeedRun & { id: string })[]; error?: string }> {
+  try {
+    const snap = await feedRunsCol().orderBy('started_at', 'desc').limit(limit).get();
+    const data = snap.docs.map(d => {
+      const raw = d.data();
+      return {
+        id: d.id,
+        started_at:    toDate(raw.started_at),
+        finished_at:   toDate(raw.finished_at),
+        status:        (raw.status as FeedRun['status']) ?? 'done',
+        sources_tried: (raw.sources_tried as number) ?? 0,
+        stories_found: (raw.stories_found as number) ?? 0,
+        stories_saved: (raw.stories_saved as number) ?? 0,
+        stories_failed:(raw.stories_failed as number) ?? 0,
+        ai_enhanced:   (raw.ai_enhanced as number) ?? 0,
+        errors:        (raw.errors as string[]) ?? [],
+      };
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error('Admin getFeedRuns error:', error);
+    return { success: false, error: 'Failed to fetch feed runs' };
+  }
+}

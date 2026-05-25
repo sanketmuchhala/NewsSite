@@ -3,7 +3,7 @@ import { TwitterScraper } from './twitter';
 import { RssScraper } from './rss';
 import { HackerNewsScraper } from './hackernews';
 import { NewsStory } from '../types';
-import { adminUpsertStory } from '../firebase/firestore-admin';
+import { adminUpsertStory, adminCreateFeedRun, adminFinishFeedRun } from '../firebase/firestore-admin';
 import { llmClient } from '../ai/llm';
 import { fetchArticleText, extractReadableSummary } from './article-extractor';
 
@@ -92,51 +92,96 @@ export class NewsStoryScraper {
 
   async scrapeAll(
     maxPerSource = 15,
-  ): Promise<{ success: number; failed: number; total: number }> {
+  ): Promise<{ success: number; failed: number; total: number; runId?: string }> {
     console.log('Starting comprehensive scrape…', { maxPerSource });
-    const results = { success: 0, failed: 0, total: 0 };
-    const rssLimit = Math.max(60, maxPerSource * 4);
 
-    const [redditStories, rssStories, twitterStories, hnStories] = await Promise.all([
-      this.scrapeReddit(maxPerSource).catch(() => [] as NewsStory[]),
-      this.scrapeRSS(rssLimit).catch(() => [] as NewsStory[]),
-      this.twitterScraper.searchByHashtag('', 0).catch(() => [] as NewsStory[]),
-      this.scrapeHackerNews(maxPerSource).catch(() => [] as NewsStory[]),
-    ]);
-    void twitterStories; // Twitter is a stub
+    // ── Create FeedRun doc ────────────────────────────────────────────────────
+    const runResult = await adminCreateFeedRun();
+    const runId = runResult.id;
 
-    const allStories = [...redditStories, ...rssStories, ...hnStories];
-    console.log(
-      `Collected ${allStories.length} raw stories (reddit:${redditStories.length} rss:${rssStories.length} hn:${hnStories.length})`,
-    );
+    const results = { success: 0, failed: 0, total: 0, aiEnhanced: 0 };
+    const errors: string[] = [];
 
-    const unique = this.removeDuplicates(allStories);
-    results.total = unique.length;
+    try {
+      const rssLimit = Math.max(60, maxPerSource * 4);
+      const [redditStories, rssStories, twitterStories, hnStories] = await Promise.all([
+        this.scrapeReddit(maxPerSource).catch(e => { errors.push(`reddit: ${e.message}`); return [] as NewsStory[]; }),
+        this.scrapeRSS(rssLimit).catch(e => { errors.push(`rss: ${e.message}`); return [] as NewsStory[]; }),
+        this.twitterScraper.searchByHashtag('', 0).catch(() => [] as NewsStory[]),
+        this.scrapeHackerNews(maxPerSource).catch(e => { errors.push(`hn: ${e.message}`); return [] as NewsStory[]; }),
+      ]);
+      void twitterStories; // Twitter is a stub
 
-    const batchSize = 5;
-    for (let i = 0; i < unique.length; i += batchSize) {
-      const batch = unique.slice(i, i + batchSize);
-      await Promise.allSettled(
-        batch.map(async story => {
-          try {
-            const [enhanced, ogImage] = await Promise.all([
-              this.enhanceWithAI(story),
-              story.image_url ? Promise.resolve(null) : this.fetchOgImage(story.url),
-            ]);
-            const final = { ...enhanced, image_url: enhanced.image_url || ogImage || null };
-            const docId = this.urlToSlug(story.url, story.title || 'untitled');
-            const saved = await adminUpsertStory(docId, final);
-            if (saved.success) { results.success++; } else { results.failed++; }
-          } catch {
-            results.failed++;
-          }
-        }),
-      );
-      if (i + batchSize < unique.length) await this.delay(250);
+      const allStories = [...redditStories, ...rssStories, ...hnStories];
+      console.log(`Collected ${allStories.length} raw stories (reddit:${redditStories.length} rss:${rssStories.length} hn:${hnStories.length})`);
+
+      const unique = this.removeDuplicates(allStories);
+      results.total = unique.length;
+
+      const batchSize = 5;
+      for (let i = 0; i < unique.length; i += batchSize) {
+        const batch = unique.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map(async story => {
+            try {
+              const [enhanced, ogImage] = await Promise.all([
+                this.enhanceWithAI(story),
+                story.image_url ? Promise.resolve(null) : this.fetchOgImage(story.url),
+              ]);
+              const final = { ...enhanced, image_url: enhanced.image_url || ogImage || null };
+              const docId = this.urlToSlug(story.url, story.title || 'untitled');
+              const saved = await adminUpsertStory(docId, final);
+              if (saved.success) {
+                results.success++;
+                if (final.ai_summary) results.aiEnhanced++;
+              } else {
+                results.failed++;
+                errors.push(`upsert failed: ${docId}`);
+              }
+            } catch (e: any) {
+              results.failed++;
+              errors.push(e?.message ?? 'unknown error');
+            }
+          }),
+        );
+        if (i + batchSize < unique.length) await this.delay(250);
+      }
+
+      // ── Finish FeedRun (success) ────────────────────────────────────────────
+      if (runId) {
+        await adminFinishFeedRun(runId, {
+          status: 'done',
+          sources_tried: 3,
+          stories_found: unique.length,
+          stories_saved: results.success,
+          stories_failed: results.failed,
+          ai_enhanced: results.aiEnhanced,
+          errors: errors.slice(0, 20),
+          started_at: null,
+          finished_at: null,
+        });
+      }
+
+      console.log(`Scrape complete: ${results.success} saved, ${results.failed} failed`);
+      return { ...results, runId };
+
+    } catch (fatalError: any) {
+      // ── Finish FeedRun (failed) ─────────────────────────────────────────────
+      if (runId) {
+        await adminFinishFeedRun(runId, {
+          status: 'failed',
+          sources_tried: 0,
+          stories_found: 0,
+          stories_saved: 0,
+          stories_failed: 0,
+          ai_enhanced: 0,
+          errors: [fatalError?.message ?? 'fatal error'],
+          started_at: null,
+          finished_at: null,
+        });
+      }
+      throw fatalError;
     }
-
-    console.log(`Scrape complete: ${results.success} saved, ${results.failed} failed`);
-    return results;
   }
 
   // ── Utilities ───────────────────────────────────────────────────────────────

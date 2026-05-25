@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { NewsStoryScraper } from '../scrapers';
-import { adminGetStories, adminUpsertStory } from '../firebase/firestore-admin';
+import { adminGetStories, adminUpsertStory, adminGetFeedRuns } from '../firebase/firestore-admin';
 import { llmClient } from '../ai/llm';
 import { fetchArticleText, extractReadableSummary } from '../scrapers/article-extractor';
 
@@ -102,6 +102,18 @@ router.post('/enhance', async (req: Request, res: Response) => {
     return res.json({ success: true, stats });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error?.message ?? 'Enhance failed' });
+  }
+});
+
+// GET /api/scrape/runs  — last N feed run logs
+router.get('/runs', async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(String(req.query.limit ?? '20'), 10), 100);
+    const result = await adminGetFeedRuns(limit);
+    if (!result.success) return res.status(500).json(result);
+    return res.json({ success: true, data: result.data });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error?.message });
   }
 });
 
