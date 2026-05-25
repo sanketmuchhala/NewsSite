@@ -24,15 +24,24 @@ export class GeminiClient {
 
     try {
       const contentSection = articleContent
-        ? `\n\nArticle content:\n${articleContent.slice(0, 1500)}`
+        ? `\n\nArticle content:\n${articleContent.slice(0, 2500)}`
         : '';
 
-      const prompt = `You are a witty news writer for a funny news site. Based ONLY on the actual content below, write a 3-4 sentence summary that is genuinely funny and captures what actually happened. Do not make anything up — stick strictly to the real facts from the article, but present them in an entertaining, dry-humored way. No emojis, no lists, just flowing prose.
+      const prompt = `You are a sharp, deadpan news writer for a funny news aggregator. Your job is to write a summary that both INFORMS and ENTERTAINS — someone who reads only your summary should fully understand what happened AND get a genuine chuckle out of it.
+
+Rules:
+- Write 5–7 sentences of flowing prose. No bullet points, no headers, no emojis.
+- Stick 100% to the real facts from the article. Do not invent details, quotes, or outcomes.
+- Preserve the full arc: who did what, why, what went wrong (or absurdly right), and how it ended.
+- The humor comes from precise word choice and dry observation — not exaggeration or fabrication. Let the absurdity of the real story speak for itself.
+- If the story is genuinely funny, lean into it with deadpan wit. If it's weird, describe the weirdness vividly. If it's a tech story, highlight the irony. If it's satire, play it straight.
+- Write at a level that makes the reader feel smart for appreciating the joke.
+- Aim for 120–200 words.
 
 Title: "${title}"
 Source: ${source}${contentSection}
 
-Write the summary now:`;
+Write the summary now (prose only, no preamble):`;
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: 'POST',
@@ -46,10 +55,10 @@ Write the summary now:`;
             }]
           }],
           generationConfig: {
-            temperature: 0.75,
+            temperature: 0.8,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 350,
+            maxOutputTokens: 700,
           }
         })
       });

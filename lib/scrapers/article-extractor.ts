@@ -65,8 +65,8 @@ export function extractReadableSummary(text: string, title: string): string {
   const sentences = body
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
-    // length between 80 and 600 chars
-    .filter(s => s.length >= 80 && s.length <= 600)
+    // length between 40 and 800 chars
+    .filter(s => s.length >= 40 && s.length <= 800)
     // mostly lower-case (real prose, not NAV ITEMS IN CAPS)
     .filter(s => (s.match(/[a-z]/g) ?? []).length > s.length * 0.35)
     // no emoji UI patterns
@@ -77,16 +77,18 @@ export function extractReadableSummary(text: string, title: string): string {
     .filter(s => !s.toLowerCase().startsWith(title.toLowerCase().slice(0, 30)));
 
   if (sentences.length === 0) {
-    // Last-resort: take first 350 non-title chars
+    // Last-resort: take first 600 non-title chars, break at word boundary
     const trimmed = body.replace(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim();
-    return trimmed.slice(0, 350).replace(/\s+\S*$/, '') + '...';
+    const chunk = trimmed.slice(0, 600);
+    const lastSpace = chunk.lastIndexOf(' ');
+    return (lastSpace > 300 ? chunk.slice(0, lastSpace) : chunk) + '...';
   }
 
-  // Return up to 3 good sentences (~300-500 chars), normalise internal whitespace
+  // Return up to 7 good sentences (~600-900 chars), normalise internal whitespace
   let result = '';
   for (const s of sentences) {
     result += (result ? ' ' : '') + s;
-    if (result.length >= 280) break;
+    if (result.length >= 600) break;
   }
   return result.replace(/\s+/g, ' ').trim();
 }
